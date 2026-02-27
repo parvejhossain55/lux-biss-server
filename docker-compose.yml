@@ -1,49 +1,62 @@
 services:
-  app:
+  api:
     build:
       context: .
-      dockerfile: docker/Dockerfile
+      dockerfile: Dockerfile
+    container_name: luxbiss-api
     ports:
-      - "8080:8080"
+      - "${SERVER_PORT:-8080}:8080"
+    env_file:
+      - .env
     environment:
-      - APP_PORT=8080
-      - APP_ENV=development
-      - APP_NAME=luxbiss_server
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - DB_NAME=luxbiss
-      - DB_SSLMODE=disable
+      - DB_HOST=postgres
+      - REDIS_HOST=redis
     depends_on:
-      db:
+      postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
     networks:
-      - luxbiss_net
+      - luxbiss-network
 
-  db:
+  postgres:
     image: postgres:16-alpine
-    ports:
-      - "5432:5432"
+    container_name: luxbiss-postgres
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=luxbiss
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-luxbiss}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres -d luxbiss" ]
-      interval: 10s
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}" ]
+      interval: 5s
       timeout: 5s
       retries: 5
     restart: unless-stopped
     networks:
-      - luxbiss_net
+      - luxbiss-network
 
-networks:
-  luxbiss_net:
-    driver: bridge
+  redis:
+    image: redis:7-alpine
+    container_name: luxbiss-redis
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - luxbiss-network
 
 volumes:
   postgres_data:
+  redis_data:
+
+
+networks:
+  luxbiss-network:
+    driver: bridge
