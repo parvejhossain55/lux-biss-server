@@ -19,9 +19,15 @@ Thumbs.db
 coverage.out
 coverage.html
 
-# Build
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Documentation
+*.md
+LICENSE
