@@ -40,6 +40,7 @@ func New(cfg *config.ServerConfig, log *logger.Logger) *Server {
 		httpServer: httpServer,
 		router:     router,
 		log:        log,
+		cfg:        cfg,
 	}
 }
 
