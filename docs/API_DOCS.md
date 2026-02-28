@@ -10,6 +10,48 @@ Welcome to the Luxbiss API reference. This document provides exact request and r
 
 ---
 
+## 🏥 Health Module (`/health`)
+
+### 1. Simple Health Check
+Checks if the server is up and running.
+
+- **Method:** `GET`
+- **Path:** `/health`
+- **Auth Required:** No
+- **Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Server is healthy",
+  "data": {
+    "status": "ok"
+  },
+  "request_id": "8b9cad0e-1f20..."
+}
+```
+
+---
+
+### 2. Readiness Check
+Checks if the server is ready to handle requests.
+
+- **Method:** `GET`
+- **Path:** `/health/ready`
+- **Auth Required:** No
+- **Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Server is ready",
+  "data": {
+    "status": "ready"
+  },
+  "request_id": "8b9cad0e-1f20..."
+}
+```
+
+---
+
 ## 🔐 Authentication Module (`/auth`)
 
 ### 1. Register a New Account
