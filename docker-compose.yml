@@ -3,13 +3,17 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: ${APP_ENV:-dev}
     container_name: luxbiss-api
     ports:
       - "${SERVER_PORT:-8080}:8080"
+    volumes:
+      - .:/app
     env_file:
       - .env
     environment:
       - DB_HOST=postgres
+      - DB_PORT=5432
       - REDIS_HOST=redis
     depends_on:
       postgres:
@@ -27,6 +31,8 @@ services:
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
       POSTGRES_DB: ${DB_NAME:-luxbiss}
+    ports:
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

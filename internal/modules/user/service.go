@@ -78,6 +78,9 @@ func (s *UserService) Update(ctx context.Context, id string, req *UpdateUserRequ
 	if req.Email != "" {
 		user.Email = strings.ToLower(req.Email)
 	}
+	if req.Role != nil {
+		user.Role = *req.Role
+	}
 	if req.IsActive != nil {
 		user.IsActive = *req.IsActive
 	}

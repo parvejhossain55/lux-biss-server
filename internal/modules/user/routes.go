@@ -13,7 +13,7 @@ func RegisterRoutes(rg *gin.RouterGroup, handler *Handler, jwtManager *jwt.Manag
 	{
 		users.GET("/me", handler.GetMe)
 		users.GET("/:id", handler.GetByID)
-		users.GET("", handler.List)
+		users.GET("", middleware.RequireRole("admin"), handler.List)
 		users.PUT("/:id", handler.Update)
 		users.DELETE("/:id", middleware.RequireRole("admin"), handler.Delete)
 	}

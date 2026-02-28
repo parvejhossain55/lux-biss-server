@@ -54,7 +54,7 @@ tidy:
 
 # ─── Docker ──────────────────────────────────────────────────
 
-## docker-up: Start all services
+## docker-up: Start all services in development mode (with hot-reload)
 docker-up:
 	@docker compose up -d
 
@@ -62,7 +62,7 @@ docker-up:
 docker-down:
 	@docker compose down
 
-## docker-build: Build Docker image
+## docker-build: Build the development image
 docker-build:
 	@docker compose build
 

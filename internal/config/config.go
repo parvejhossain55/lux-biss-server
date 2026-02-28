@@ -197,7 +197,7 @@ func validateSecuritySettings() error {
 
 func setDefaults() {
 	viper.SetDefault("APP_NAME", "luxbiss-server")
-	viper.SetDefault("APP_ENV", "development")
+	viper.SetDefault("APP_ENV", "dev")
 
 	viper.SetDefault("SERVER_PORT", "8080")
 	viper.SetDefault("SERVER_READ_TIMEOUT", "15s")

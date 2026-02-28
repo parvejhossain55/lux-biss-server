@@ -8,9 +8,10 @@ type CreateUserRequest struct {
 }
 
 type UpdateUserRequest struct {
-	Name     string `json:"name" validate:"omitempty,min=2,max=100"`
-	Email    string `json:"email" validate:"omitempty,email"`
-	IsActive *bool  `json:"is_active" validate:"omitempty"`
+	Name     string  `json:"name" validate:"omitempty,min=2,max=100"`
+	Email    string  `json:"email" validate:"omitempty,email"`
+	Role     *string `json:"role" validate:"omitempty,oneof=user admin"`
+	IsActive *bool   `json:"is_active" validate:"omitempty"`
 }
 
 type UserResponse struct {

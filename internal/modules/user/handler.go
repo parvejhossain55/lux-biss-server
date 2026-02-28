@@ -42,6 +42,14 @@ func (h *Handler) Create(c *gin.Context) {
 func (h *Handler) GetByID(c *gin.Context) {
 	id := c.Param("id")
 
+	userID := c.GetString("user_id")
+	userRole := c.GetString("user_role")
+
+	if userRole != RoleAdmin && id != userID {
+		common.Forbidden(c, "You don't have permission to access this user")
+		return
+	}
+
 	user, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
 		if appErr, ok := common.IsAppError(err); ok {
@@ -74,9 +82,22 @@ func (h *Handler) List(c *gin.Context) {
 func (h *Handler) Update(c *gin.Context) {
 	id := c.Param("id")
 
+	userID := c.GetString("user_id")
+	userRole := c.GetString("user_role")
+
+	if userRole != RoleAdmin && id != userID {
+		common.Forbidden(c, "You don't have permission to update this user")
+		return
+	}
+
 	var req UpdateUserRequest
 	if errs := common.ValidateRequest(c, &req); errs != nil {
 		common.BadRequest(c, "Validation failed", errs)
+		return
+	}
+
+	if userRole != RoleAdmin && (req.Role != nil || req.IsActive != nil) {
+		common.Forbidden(c, "Only admins can update role or active status")
 		return
 	}
 
