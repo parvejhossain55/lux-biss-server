@@ -1,56 +1,31 @@
 package middleware
 
 import (
+	"fmt"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 )
 
-type RateLimiter struct {
-	mu       sync.Mutex
-	visitors map[string]*visitor
-	rate     int
-	window   time.Duration
-}
-
-type visitor struct {
-	count    int
-	lastSeen time.Time
-}
-
-func NewRateLimiter(rate int, window time.Duration) *RateLimiter {
-	rl := &RateLimiter{
-		visitors: make(map[string]*visitor),
-		rate:     rate,
-		window:   window,
-	}
-
-	go rl.cleanup()
-
-	return rl
-}
-
-func (rl *RateLimiter) Limit() gin.HandlerFunc {
+func RateLimit(rdb *redis.Client, rate int, window time.Duration) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Try to get user ID first, fallback to IP
-		key := rl.getRateLimitKey(c)
+		key := getRateLimitKey(c)
+		rKey := fmt.Sprintf("ratelimit:%s:%s", c.Request.URL.Path, key)
 
-		rl.mu.Lock()
-		v, exists := rl.visitors[key]
-		if !exists || time.Since(v.lastSeen) > rl.window {
-			rl.visitors[key] = &visitor{count: 1, lastSeen: time.Now()}
-			rl.mu.Unlock()
-			c.Next()
+		// Using Redis INCR and EXPIRE for sliding window (approx)
+		count, err := rdb.Incr(c.Request.Context(), rKey).Result()
+		if err != nil {
+			c.Next() // Fallback: Allow if Redis is down
 			return
 		}
 
-		v.count++
-		v.lastSeen = time.Now()
+		if count == 1 {
+			rdb.Expire(c.Request.Context(), rKey, window)
+		}
 
-		if v.count > rl.rate {
-			rl.mu.Unlock()
+		if count > int64(rate) {
 			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
 				"success":    false,
 				"message":    "Too many requests, please try again later",
@@ -58,33 +33,14 @@ func (rl *RateLimiter) Limit() gin.HandlerFunc {
 			})
 			return
 		}
-		rl.mu.Unlock()
 
 		c.Next()
 	}
 }
 
-// getRateLimitKey returns a unique key for rate limiting based on user authentication
-func (rl *RateLimiter) getRateLimitKey(c *gin.Context) string {
-	// If user is authenticated, use user ID for per-user rate limiting
+func getRateLimitKey(c *gin.Context) string {
 	if userID, exists := c.Get("user_id"); exists {
 		return "user:" + userID.(string)
 	}
-
-	// Fallback to IP-based rate limiting for unauthenticated requests
 	return "ip:" + c.ClientIP()
-}
-
-func (rl *RateLimiter) cleanup() {
-	ticker := time.NewTicker(1 * time.Minute)
-	defer ticker.Stop()
-	for range ticker.C {
-		rl.mu.Lock()
-		for ip, v := range rl.visitors {
-			if time.Since(v.lastSeen) > rl.window {
-				delete(rl.visitors, ip)
-			}
-		}
-		rl.mu.Unlock()
-	}
 }

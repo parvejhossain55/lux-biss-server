@@ -66,13 +66,13 @@ func main() {
 	srv := server.New(&cfg.Server, appLogger)
 	router := srv.Router()
 
-	rateLimiter := middleware.NewRateLimiter(100, 1*time.Minute)
 	router.Use(
 		middleware.RequestID(),
 		middleware.Recovery(appLogger),
 		middleware.CORS(&cfg.CORS),
+		middleware.CSRF(&cfg.CORS),
 		middleware.SecurityHeaders(),
-		rateLimiter.Limit(),
+		middleware.RateLimit(rdb, 100, 1*time.Minute), // Global limit
 	)
 
 	api := router.Group("/api/v1")
@@ -103,7 +103,7 @@ func registerRoutes(
 	userRepo := user.NewGormRepository(db)
 	userService := user.NewService(userRepo, appLogger)
 	userHandler := user.NewHandler(userService, appLogger)
-	user.RegisterRoutes(api, userHandler, jwtManager)
+	user.RegisterRoutes(api, userHandler, jwtManager, rdb)
 
 	emailSender := email.NewSMTPSender(&email.SMTPConfig{
 		Host:     cfg.SMTP.Host,
@@ -114,6 +114,7 @@ func registerRoutes(
 	})
 
 	authService := auth.NewService(userService, jwtManager, rdb, emailSender, &cfg.OAuth, appLogger)
-	authHandler := auth.NewHandler(authService, appLogger)
-	auth.RegisterRoutes(api, authHandler)
+	cookieManager := auth.NewCookieManager(&cfg.Cookie, &cfg.JWT)
+	authHandler := auth.NewHandler(authService, cookieManager, appLogger)
+	auth.RegisterRoutes(api, authHandler, rdb)
 }

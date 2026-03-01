@@ -1,18 +1,21 @@
 package auth
 
 import (
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"github.com/parvej/luxbiss_server/internal/common"
 	"github.com/parvej/luxbiss_server/internal/logger"
 )
 
 type Handler struct {
-	service *Service
-	log     *logger.Logger
+	service       *Service
+	cookieManager *CookieManager
+	log           *logger.Logger
 }
 
-func NewHandler(service *Service, log *logger.Logger) *Handler {
-	return &Handler{service: service, log: log}
+func NewHandler(service *Service, cookieManager *CookieManager, log *logger.Logger) *Handler {
+	return &Handler{service: service, cookieManager: cookieManager, log: log}
 }
 
 func (h *Handler) Register(c *gin.Context) {
@@ -36,7 +39,10 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 
-	common.Created(c, "Registration successful", resp)
+	// Set tokens as HTTP-only cookies
+	h.cookieManager.SetTokenCookies(c, resp.AccessToken, resp.RefreshToken)
+
+	common.Created(c, "Registration successful", resp.User)
 }
 
 func (h *Handler) Login(c *gin.Context) {
@@ -60,19 +66,27 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	common.OK(c, "Login successful", resp)
+	// Set tokens as HTTP-only cookies
+	h.cookieManager.SetTokenCookies(c, resp.AccessToken, resp.RefreshToken)
+
+	common.OK(c, "Login successful", resp.User)
 }
 
 func (h *Handler) RefreshToken(c *gin.Context) {
-	var req RefreshTokenRequest
-	if errs := common.ValidateRequest(c, &req); errs != nil {
-		common.BadRequest(c, "Validation failed", errs)
-		return
+	// Try to read refresh token from cookie first, then fallback to JSON body
+	refreshToken, err := c.Cookie("refresh_token")
+	if err != nil || refreshToken == "" {
+		var req RefreshTokenRequest
+		if errs := common.ValidateRequest(c, &req); errs != nil {
+			common.BadRequest(c, "Validation failed", errs)
+			return
+		}
+		refreshToken = req.RefreshToken
 	}
 
-	resp, err := h.service.RefreshToken(c.Request.Context(), &req)
-	if err != nil {
-		if appErr, ok := common.IsAppError(err); ok {
+	resp, svcErr := h.service.RefreshToken(c.Request.Context(), refreshToken)
+	if svcErr != nil {
+		if appErr, ok := common.IsAppError(svcErr); ok {
 			c.JSON(appErr.StatusCode, common.Response{
 				Success:   false,
 				Message:   appErr.Message,
@@ -84,7 +98,10 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 		return
 	}
 
-	common.OK(c, "Token refreshed successfully", resp)
+	// Set new tokens as HTTP-only cookies
+	h.cookieManager.SetTokenCookies(c, resp.AccessToken, resp.RefreshToken)
+
+	common.OK(c, "Token refreshed successfully", resp.User)
 }
 
 func (h *Handler) GoogleLogin(c *gin.Context) {
@@ -108,7 +125,28 @@ func (h *Handler) GoogleLogin(c *gin.Context) {
 		return
 	}
 
-	common.OK(c, "Google login successful", resp)
+	// Set tokens as HTTP-only cookies
+	h.cookieManager.SetTokenCookies(c, resp.AccessToken, resp.RefreshToken)
+
+	common.OK(c, "Google login successful", resp.User)
+}
+
+func (h *Handler) Logout(c *gin.Context) {
+	// 1. Get token from cookie or header
+	var tokenStr string
+	if cookie, err := c.Cookie("access_token"); err == nil && cookie != "" {
+		tokenStr = cookie
+	} else {
+		authHeader := c.GetHeader("Authorization")
+		tokenStr = strings.TrimPrefix(authHeader, "Bearer ")
+	}
+
+	if tokenStr != "" {
+		_ = h.service.Logout(c.Request.Context(), tokenStr)
+	}
+
+	h.cookieManager.ClearTokenCookies(c)
+	common.OK(c, "Logged out successfully", nil)
 }
 
 func (h *Handler) ForgotPassword(c *gin.Context) {

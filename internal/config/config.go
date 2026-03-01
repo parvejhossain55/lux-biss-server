@@ -14,6 +14,7 @@ type Config struct {
 	Database DatabaseConfig
 	Redis    RedisConfig
 	JWT      JWTConfig
+	Cookie   CookieConfig
 	Log      LogConfig
 	CORS     CORSConfig
 	SMTP     SMTPConfig
@@ -59,6 +60,13 @@ type JWTConfig struct {
 	AccessTokenTTL  time.Duration
 	RefreshTokenTTL time.Duration
 	Issuer          string
+}
+
+type CookieConfig struct {
+	Domain   string
+	Secure   bool
+	SameSite string
+	Path     string
 }
 
 type LogConfig struct {
@@ -147,12 +155,18 @@ func Load() (*Config, error) {
 			RefreshTokenTTL: viper.GetDuration("JWT_REFRESH_TOKEN_TTL"),
 			Issuer:          viper.GetString("JWT_ISSUER"),
 		},
+		Cookie: CookieConfig{
+			Domain:   viper.GetString("COOKIE_DOMAIN"),
+			Secure:   viper.GetBool("COOKIE_SECURE"),
+			SameSite: viper.GetString("COOKIE_SAMESITE"),
+			Path:     viper.GetString("COOKIE_PATH"),
+		},
 		Log: LogConfig{
 			Level:  viper.GetString("LOG_LEVEL"),
 			Format: viper.GetString("LOG_FORMAT"),
 		},
 		CORS: CORSConfig{
-			AllowedOrigins: viper.GetStringSlice("CORS_ALLOWED_ORIGINS"),
+			AllowedOrigins: parseStringSlice("CORS_ALLOWED_ORIGINS"),
 		},
 		SMTP: SMTPConfig{
 			Host:     viper.GetString("SMTP_HOST"),
@@ -227,6 +241,11 @@ func setDefaults() {
 	viper.SetDefault("JWT_REFRESH_TOKEN_TTL", "168h")
 	viper.SetDefault("JWT_ISSUER", "luxbiss-server")
 
+	viper.SetDefault("COOKIE_DOMAIN", "")
+	viper.SetDefault("COOKIE_SECURE", false)
+	viper.SetDefault("COOKIE_SAMESITE", "Lax")
+	viper.SetDefault("COOKIE_PATH", "/")
+
 	viper.SetDefault("LOG_LEVEL", "debug")
 	viper.SetDefault("LOG_FORMAT", "console")
 	viper.SetDefault("CORS_ALLOWED_ORIGINS", []string{})
@@ -240,4 +259,23 @@ func setDefaults() {
 	viper.SetDefault("GOOGLE_CLIENT_ID", "")
 	viper.SetDefault("GOOGLE_CLIENT_SECRET", "")
 	viper.SetDefault("GOOGLE_REDIRECT_URL", "")
+}
+
+func parseStringSlice(key string) []string {
+	val := viper.GetString(key)
+	if val == "" {
+		return []string{}
+	}
+
+	// Viper.GetStringSlice doesn't always handle env vars correctly
+	// if they are not explicitly typed. We manually split by comma.
+	parts := strings.Split(val, ",")
+	result := make([]string, 0, len(parts))
+	for _, p := range parts {
+		trimmed := strings.TrimSpace(p)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
 }

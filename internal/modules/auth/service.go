@@ -64,6 +64,11 @@ func (s *Service) Register(ctx context.Context, req *RegisterRequest) (*AuthResp
 		return nil, common.ErrInternal(err)
 	}
 
+	// Store refresh token JTI for rotation check
+	claims, _ := s.jwtManager.ValidateToken(tokens.RefreshToken)
+	rfKey := fmt.Sprintf("refresh_token:%s", newUser.ID)
+	_ = s.rdb.Set(ctx, rfKey, claims.ID, s.jwtManager.GetRefreshTokenTTL()).Err()
+
 	return &AuthResponse{
 		AccessToken:  tokens.AccessToken,
 		RefreshToken: tokens.RefreshToken,
@@ -74,6 +79,9 @@ func (s *Service) Register(ctx context.Context, req *RegisterRequest) (*AuthResp
 func (s *Service) Login(ctx context.Context, req *LoginRequest) (*AuthResponse, error) {
 	existingUser, err := s.userService.GetByEmail(ctx, req.Email)
 	if err != nil {
+		// Timing protection: Always run bcrypt even when user doesn't exist
+		dummyHash := "$2a$12$K.zM1I9O.M.qE9V.O7W1.e0wV.l.v.v.v.v.v.v.v.v.v.v.v.v.v.v"
+		_ = hash.CheckPassword(req.Password, dummyHash)
 		return nil, common.ErrUnauthorized("Invalid credentials")
 	}
 
@@ -91,6 +99,11 @@ func (s *Service) Login(ctx context.Context, req *LoginRequest) (*AuthResponse, 
 		return nil, common.ErrInternal(err)
 	}
 
+	// Store refresh token JTI for rotation check
+	claims, _ := s.jwtManager.ValidateToken(tokens.RefreshToken)
+	rfKey := fmt.Sprintf("refresh_token:%s", existingUser.ID)
+	_ = s.rdb.Set(ctx, rfKey, claims.ID, s.jwtManager.GetRefreshTokenTTL()).Err()
+
 	return &AuthResponse{
 		AccessToken:  tokens.AccessToken,
 		RefreshToken: tokens.RefreshToken,
@@ -98,10 +111,17 @@ func (s *Service) Login(ctx context.Context, req *LoginRequest) (*AuthResponse, 
 	}, nil
 }
 
-func (s *Service) RefreshToken(ctx context.Context, req *RefreshTokenRequest) (*AuthResponse, error) {
-	claims, err := s.jwtManager.ValidateToken(req.RefreshToken)
+func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*AuthResponse, error) {
+	claims, err := s.jwtManager.ValidateToken(refreshToken)
 	if err != nil {
 		return nil, common.ErrUnauthorized("Invalid or expired refresh token")
+	}
+
+	// Verify if this is the active refresh token (Rotation Check)
+	rfKey := fmt.Sprintf("refresh_token:%s", claims.UserID)
+	storedJTI, err := s.rdb.Get(ctx, rfKey).Result()
+	if err != nil || storedJTI != claims.ID {
+		return nil, common.ErrUnauthorized("Refresh token has been rotated or invalidated")
 	}
 
 	existingUser, err := s.userService.GetByID(ctx, claims.UserID)
@@ -119,6 +139,11 @@ func (s *Service) RefreshToken(ctx context.Context, req *RefreshTokenRequest) (*
 		return nil, common.ErrInternal(err)
 	}
 
+	// Store refresh token JTI for rotation check
+	refClaims, _ := s.jwtManager.ValidateToken(tokens.RefreshToken)
+	rfKey = fmt.Sprintf("refresh_token:%s", existingUser.ID)
+	_ = s.rdb.Set(ctx, rfKey, refClaims.ID, s.jwtManager.GetRefreshTokenTTL()).Err()
+
 	return &AuthResponse{
 		AccessToken:  tokens.AccessToken,
 		RefreshToken: tokens.RefreshToken,
@@ -133,15 +158,21 @@ func (s *Service) GoogleLogin(ctx context.Context, req *GoogleOAuthRequest) (*Au
 		return nil, common.ErrUnauthorized("Invalid Google token")
 	}
 
-	email := payload.Claims["email"].(string)
-	name := payload.Claims["name"].(string)
+	emailClaim, ok := payload.Claims["email"].(string)
+	if !ok || emailClaim == "" {
+		return nil, common.ErrUnauthorized("Google account has no email")
+	}
+	nameClaim, _ := payload.Claims["name"].(string)
+	if nameClaim == "" {
+		nameClaim = "Google User"
+	}
 
-	existingUser, err := s.userService.GetByEmail(ctx, email)
+	existingUser, err := s.userService.GetByEmail(ctx, emailClaim)
 	if err != nil {
 		// Register new user
 		createReq := &user.CreateUserRequest{
-			Name:     name,
-			Email:    email,
+			Name:     nameClaim,
+			Email:    emailClaim,
 			Password: generateRandomPassword(), // Google users don't need password but we store a random one
 			Role:     user.RoleUser,
 		}
@@ -159,6 +190,11 @@ func (s *Service) GoogleLogin(ctx context.Context, req *GoogleOAuthRequest) (*Au
 	if err != nil {
 		return nil, common.ErrInternal(err)
 	}
+
+	// Store refresh token JTI for rotation check
+	googleRefClaims, _ := s.jwtManager.ValidateToken(tokens.RefreshToken)
+	googRfKey := fmt.Sprintf("refresh_token:%s", existingUser.ID)
+	_ = s.rdb.Set(ctx, googRfKey, googleRefClaims.ID, s.jwtManager.GetRefreshTokenTTL()).Err()
 
 	return &AuthResponse{
 		AccessToken:  tokens.AccessToken,
@@ -184,8 +220,15 @@ func (s *Service) ForgotPassword(ctx context.Context, req *ForgotPasswordRequest
 	}
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				s.log.Errorw("Recovered from panic in ForgotPassword goroutine", "error", r)
+			}
+		}()
+
 		subject := "Your Password Reset OTP"
 		body := fmt.Sprintf("<h1>OTP: %s</h1><p>This code will expire in 15 minutes.</p>", otp)
+
 		err := s.emailSender.SendEmail([]string{existingUser.Email}, subject, body)
 		if err != nil {
 			s.log.Errorw("Failed to send OTP email", "error", err, "email", existingUser.Email)
@@ -197,6 +240,18 @@ func (s *Service) ForgotPassword(ctx context.Context, req *ForgotPasswordRequest
 
 func (s *Service) ResetPassword(ctx context.Context, req *ResetPasswordRequest) error {
 	otpKey := fmt.Sprintf("otp:%s", req.Email)
+	attemptsKey := fmt.Sprintf("otp_attempts:%s", req.Email)
+
+	// Increment attempts
+	attempts, _ := s.rdb.Incr(ctx, attemptsKey).Result()
+	if attempts == 1 {
+		_ = s.rdb.Expire(ctx, attemptsKey, 15*time.Minute)
+	}
+	if attempts > 5 {
+		_ = s.rdb.Del(ctx, otpKey)
+		return common.ErrForbidden("Maximum OTP attempts reached. Please request a new OTP.")
+	}
+
 	storedOTP, err := s.rdb.Get(ctx, otpKey).Result()
 	if err != nil {
 		if err == redis.Nil {
@@ -220,12 +275,31 @@ func (s *Service) ResetPassword(ctx context.Context, req *ResetPasswordRequest) 
 		return common.ErrInternal(err)
 	}
 
-	// We'll add this method to userService
 	if err := s.userService.UpdatePassword(ctx, existingUser.ID, hashedPassword); err != nil {
 		return err
 	}
 
-	s.rdb.Del(ctx, otpKey)
+	_ = s.rdb.Del(ctx, otpKey, attemptsKey)
+	return nil
+}
+
+func (s *Service) Logout(ctx context.Context, accessToken string) error {
+	claims, err := s.jwtManager.ValidateToken(accessToken)
+	if err != nil {
+		return nil // Token already invalid
+	}
+
+	// Blacklist access token JTI until it expires
+	ttl := time.Until(claims.ExpiresAt.Time)
+	if ttl > 0 {
+		blKey := fmt.Sprintf("blacklist:%s", claims.ID)
+		_ = s.rdb.Set(ctx, blKey, "1", ttl).Err()
+	}
+
+	// Also clear refresh token
+	rfKey := fmt.Sprintf("refresh_token:%s", claims.UserID)
+	_ = s.rdb.Del(ctx, rfKey)
+
 	return nil
 }
 

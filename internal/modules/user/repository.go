@@ -84,6 +84,7 @@ func (r *GormRepository) Update(ctx context.Context, user *User) error {
 		Updates(map[string]interface{}{
 			"name":      user.Name,
 			"email":     user.Email,
+			"role":      user.Role,
 			"is_active": user.IsActive,
 		})
 	if result.Error != nil {
@@ -114,7 +115,7 @@ func (r *GormRepository) UpdatePassword(ctx context.Context, id string, hashedPa
 }
 
 func (r *GormRepository) Delete(ctx context.Context, id string) error {
-	result := r.db.WithContext(ctx).Where("id = ?", id).Delete(&User{})
+	result := r.db.WithContext(ctx).Delete(&User{}, "id = ?", id)
 	if result.Error != nil {
 		return result.Error
 	}

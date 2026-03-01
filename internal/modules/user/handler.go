@@ -2,6 +2,7 @@ package user
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/parvej/luxbiss_server/internal/common"
 	"github.com/parvej/luxbiss_server/internal/logger"
 )
@@ -41,6 +42,10 @@ func (h *Handler) Create(c *gin.Context) {
 
 func (h *Handler) GetByID(c *gin.Context) {
 	id := c.Param("id")
+	if _, err := uuid.Parse(id); err != nil {
+		common.BadRequest(c, "Invalid user ID", nil)
+		return
+	}
 
 	userID := c.GetString("user_id")
 	userRole := c.GetString("user_role")
@@ -81,6 +86,10 @@ func (h *Handler) List(c *gin.Context) {
 
 func (h *Handler) Update(c *gin.Context) {
 	id := c.Param("id")
+	if _, err := uuid.Parse(id); err != nil {
+		common.BadRequest(c, "Invalid user ID", nil)
+		return
+	}
 
 	userID := c.GetString("user_id")
 	userRole := c.GetString("user_role")
@@ -120,6 +129,10 @@ func (h *Handler) Update(c *gin.Context) {
 
 func (h *Handler) Delete(c *gin.Context) {
 	id := c.Param("id")
+	if _, err := uuid.Parse(id); err != nil {
+		common.BadRequest(c, "Invalid user ID", nil)
+		return
+	}
 
 	if err := h.service.Delete(c.Request.Context(), id); err != nil {
 		if appErr, ok := common.IsAppError(err); ok {

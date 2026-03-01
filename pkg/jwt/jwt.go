@@ -36,6 +36,10 @@ func NewManager(secret string, accessTTL, refreshTTL time.Duration, issuer strin
 	}
 }
 
+func (m *Manager) GetRefreshTokenTTL() time.Duration {
+	return m.refreshTokenTTL
+}
+
 func (m *Manager) GenerateTokenPair(userID, email, role string) (*TokenPair, error) {
 	accessToken, err := m.generateToken(userID, email, role, m.accessTokenTTL)
 	if err != nil {

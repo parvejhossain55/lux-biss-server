@@ -40,14 +40,12 @@ type AuthResponse struct {
 	User         interface{} `json:"user"`
 }
 
-// Custom validator for secure passwords
 func ValidateSecurePassword(fl validator.FieldLevel) bool {
 	password := fl.Field().String()
 	result := validators.ValidatePassword(password)
 	return result.IsValid
 }
 
-// Register the custom validator
 func RegisterPasswordValidators(v *validator.Validate) {
 	v.RegisterValidation("secure_password", ValidateSecurePassword)
 }
