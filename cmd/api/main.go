@@ -12,6 +12,7 @@ import (
 	"github.com/parvej/luxbiss_server/internal/middleware"
 	"github.com/parvej/luxbiss_server/internal/modules/auth"
 	"github.com/parvej/luxbiss_server/internal/modules/health"
+	"github.com/parvej/luxbiss_server/internal/modules/product"
 	"github.com/parvej/luxbiss_server/internal/modules/user"
 	"github.com/parvej/luxbiss_server/internal/server"
 	"github.com/parvej/luxbiss_server/pkg/email"
@@ -45,7 +46,7 @@ func main() {
 	}
 	defer sqlDB.Close()
 
-	if err := db.AutoMigrate(&user.User{}); err != nil {
+	if err := db.AutoMigrate(&user.User{}, &product.Product{}); err != nil {
 		appLogger.Fatalf("Failed to auto-migrate: %v", err)
 	}
 	appLogger.Info("Database migration completed")
@@ -117,4 +118,9 @@ func registerRoutes(
 	cookieManager := auth.NewCookieManager(&cfg.Cookie, &cfg.JWT)
 	authHandler := auth.NewHandler(authService, cookieManager, appLogger)
 	auth.RegisterRoutes(api, authHandler, rdb)
+
+	productRepo := product.NewGormRepository(db)
+	productService := product.NewService(productRepo, appLogger)
+	productHandler := product.NewHandler(productService, appLogger)
+	product.RegisterRoutes(api, productHandler, jwtManager, rdb)
 }
