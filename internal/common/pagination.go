@@ -45,9 +45,11 @@ func NewPagination(c *gin.Context) Pagination {
 
 func (p Pagination) ToMeta(total int64) *Meta {
 	return &Meta{
-		Page:    p.Page,
-		PerPage: p.PerPage,
-		Total:   total,
+		Page:        p.Page,
+		PerPage:     p.PerPage,
+		Total:       total,
+		HasPrevious: p.Page > 1,
+		HasNext:     total > int64(p.Page*p.PerPage),
 	}
 }
 

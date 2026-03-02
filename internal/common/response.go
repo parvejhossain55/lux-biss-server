@@ -7,9 +7,11 @@ import (
 )
 
 type Meta struct {
-	Page    int   `json:"page"`
-	PerPage int   `json:"per_page"`
-	Total   int64 `json:"total"`
+	Page        int   `json:"page"`
+	PerPage     int   `json:"per_page"`
+	Total       int64 `json:"total"`
+	HasPrevious bool  `json:"has_previous"`
+	HasNext     bool  `json:"has_next"`
 }
 
 type Response struct {
