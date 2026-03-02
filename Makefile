@@ -1,7 +1,7 @@
 .PHONY: dev build test lint run clean \
        docker-up docker-down docker-build \
        migrate-up migrate-down migrate-create \
-       tidy
+       tidy seed seed-fresh
 
 # ─── Variables ────────────────────────────────────────────────
 APP_NAME    := luxbiss-server
@@ -83,6 +83,16 @@ migrate-down:
 ## migrate-create: Create a new migration (usage: make migrate-create name=create_products)
 migrate-create:
 	@migrate create -ext sql -dir $(MIGRATION_DIR) -seq $(name)
+
+# ─── Seeding ──────────────────────────────────────────────────
+
+## seed: Run database seeders
+seed:
+	@go run ./cmd/seeder/main.go
+
+## seed-fresh: Truncate tables and run database seeders
+seed-fresh:
+	@go run ./cmd/seeder/main.go -truncate
 
 # ─── Help ────────────────────────────────────────────────────
 
