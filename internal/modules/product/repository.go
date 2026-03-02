@@ -30,7 +30,7 @@ func (r *GormRepository) Create(ctx context.Context, product *Product) error {
 
 func (r *GormRepository) GetByID(ctx context.Context, id string) (*Product, error) {
 	var product Product
-	result := r.db.WithContext(ctx).Where("id = ?", id).First(&product)
+	result := r.db.WithContext(ctx).Preload("Level").Where("id = ?", id).First(&product)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, common.ErrNotFound("Product")
@@ -49,6 +49,7 @@ func (r *GormRepository) List(ctx context.Context, limit, offset int) ([]*Produc
 
 	var products []*Product
 	result := r.db.WithContext(ctx).
+		Preload("Level").
 		Order("created_at DESC").
 		Limit(limit).
 		Offset(offset).

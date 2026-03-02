@@ -7,8 +7,22 @@ import (
 	"gorm.io/gorm"
 )
 
+type Level struct {
+	ID        uint           `json:"id" gorm:"primaryKey"`
+	Name      string         `json:"name" gorm:"type:varchar(50);not null;unique"`
+	CreatedAt time.Time      `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
+	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
+}
+
+func (Level) TableName() string {
+	return "levels"
+}
+
 type Product struct {
 	ID          string         `json:"id" gorm:"type:varchar(36);primaryKey"`
+	LevelID     uint           `json:"level_id" gorm:"not null;index"`
+	Level       *Level         `json:"level,omitempty" gorm:"foreignKey:LevelID"`
 	Name        string         `json:"name" gorm:"type:varchar(255);not null"`
 	Price       float64        `json:"price" gorm:"type:decimal(10,2);not null"`
 	Rating      float64        `json:"rating" gorm:"type:decimal(2,1);default:0.0"`

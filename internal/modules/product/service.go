@@ -18,6 +18,7 @@ func NewService(repo Repository, log *logger.Logger) *ProductService {
 
 func (s *ProductService) Create(ctx context.Context, req *CreateProductRequest) (*Product, error) {
 	product := &Product{
+		LevelID:     req.LevelID,
 		Name:        req.Name,
 		Price:       req.Price,
 		Rating:      req.Rating,
@@ -54,6 +55,9 @@ func (s *ProductService) Update(ctx context.Context, id string, req *UpdateProdu
 		return nil, err
 	}
 
+	if req.LevelID != nil {
+		product.LevelID = *req.LevelID
+	}
 	if req.Name != nil {
 		product.Name = *req.Name
 	}
