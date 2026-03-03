@@ -10,6 +10,7 @@ import (
 	"github.com/parvej/luxbiss_server/internal/logger"
 	"github.com/parvej/luxbiss_server/internal/modules/product"
 	"github.com/parvej/luxbiss_server/internal/modules/user"
+	"github.com/parvej/luxbiss_server/internal/modules/wallet"
 )
 
 func main() {
@@ -32,7 +33,7 @@ func main() {
 	}
 	defer sqlDB.Close()
 
-	if err := db.AutoMigrate(&user.User{}, &product.Level{}, &product.Product{}); err != nil {
+	if err := db.AutoMigrate(&user.User{}, &product.Level{}, &product.Product{}, &wallet.Wallet{}); err != nil {
 		appLogger.Fatalf("Failed to auto-migrate: %v", err)
 	}
 
@@ -43,10 +44,11 @@ func main() {
 	registry.Register(&seeder.UserSeeder{})
 	registry.Register(&seeder.LevelSeeder{})
 	registry.Register(&seeder.ProductSeeder{})
+	registry.Register(&seeder.WalletSeeder{})
 
 	if *truncate {
 		appLogger.Info("Truncating tables...")
-		tables := []string{"users", "levels", "products"}
+		tables := []string{"users", "levels", "products", "wallets"}
 		if err := registry.TruncateAll(db, tables); err != nil {
 			appLogger.Fatalf("Failed to truncate tables: %v", err)
 		}
