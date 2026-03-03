@@ -25,9 +25,15 @@ type ForgotPasswordRequest struct {
 }
 
 type ResetPasswordRequest struct {
-	Email    string `json:"email" validate:"required,email"`
-	OTP      string `json:"otp" validate:"required,len=6"`
-	Password string `json:"password" validate:"required,min=8,max=128,secure_password"`
+	Email           string `json:"email" validate:"required,email"`
+	OTP             string `json:"otp" validate:"required,len=6"`
+	Password        string `json:"password" validate:"required,min=8,max=128,secure_password"`
+	ConfirmPassword string `json:"confirm_password" validate:"required,min=8,max=128,secure_password"`
+}
+
+type VerifyOTPRequest struct {
+	Email string `json:"email" validate:"required,email"`
+	OTP   string `json:"otp" validate:"required,len=6"`
 }
 
 type GoogleOAuthRequest struct {
