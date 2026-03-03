@@ -13,15 +13,18 @@ const (
 )
 
 type User struct {
-	ID        string         `json:"id" gorm:"type:varchar(36);primaryKey"`
-	Name      string         `json:"name" gorm:"type:varchar(100);not null"`
-	Email     string         `json:"email" gorm:"type:varchar(255);uniqueIndex;not null"`
-	Password  string         `json:"-" gorm:"type:varchar(255);not null"`
-	Role      string         `json:"role" gorm:"type:varchar(20);not null;default:'user';index"`
-	IsActive  bool           `json:"is_active" gorm:"not null;default:true"`
-	CreatedAt time.Time      `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
-	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
+	ID               string         `json:"id" gorm:"type:varchar(36);primaryKey"`
+	Name             string         `json:"name" gorm:"type:varchar(100);not null"`
+	Email            string         `json:"email" gorm:"type:varchar(255);uniqueIndex;not null"`
+	Password         string         `json:"-" gorm:"type:varchar(255);not null"`
+	Role             string         `json:"role" gorm:"type:varchar(20);not null;default:'user';index"`
+	IsActive         bool           `json:"is_active" gorm:"not null;default:true"`
+	ProfilePhoto     string         `json:"profile_photo" gorm:"type:varchar(255)"`
+	TelegramUsername string         `json:"telegram_username" gorm:"type:varchar(255)"`
+	TelegramLink     string         `json:"telegram_link" gorm:"type:varchar(255)"`
+	CreatedAt        time.Time      `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt        time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
+	DeletedAt        gorm.DeletedAt `json:"-" gorm:"index"`
 }
 
 func (User) TableName() string {

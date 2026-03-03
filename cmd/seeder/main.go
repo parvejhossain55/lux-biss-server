@@ -32,7 +32,7 @@ func main() {
 	}
 	defer sqlDB.Close()
 
-	if err := db.AutoMigrate(&user.User{}, &product.Product{}); err != nil {
+	if err := db.AutoMigrate(&user.User{}, &product.Level{}, &product.Product{}); err != nil {
 		appLogger.Fatalf("Failed to auto-migrate: %v", err)
 	}
 
@@ -41,11 +41,12 @@ func main() {
 
 	registry := seeder.NewRegistry()
 	registry.Register(&seeder.UserSeeder{})
+	registry.Register(&seeder.LevelSeeder{})
 	registry.Register(&seeder.ProductSeeder{})
 
 	if *truncate {
 		appLogger.Info("Truncating tables...")
-		tables := []string{"users", "products"}
+		tables := []string{"users", "levels", "products"}
 		if err := registry.TruncateAll(db, tables); err != nil {
 			appLogger.Fatalf("Failed to truncate tables: %v", err)
 		}

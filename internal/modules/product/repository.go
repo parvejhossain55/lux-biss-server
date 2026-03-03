@@ -30,7 +30,7 @@ func (r *GormRepository) Create(ctx context.Context, product *Product) error {
 
 func (r *GormRepository) GetByID(ctx context.Context, id string) (*Product, error) {
 	var product Product
-	result := r.db.WithContext(ctx).Where("id = ?", id).First(&product)
+	result := r.db.WithContext(ctx).Preload("Level").Where("id = ?", id).First(&product)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, common.ErrNotFound("Product")
@@ -41,18 +41,36 @@ func (r *GormRepository) GetByID(ctx context.Context, id string) (*Product, erro
 	return &product, nil
 }
 
-func (r *GormRepository) List(ctx context.Context, limit, offset int) ([]*Product, int64, error) {
+func (r *GormRepository) List(ctx context.Context, limit, offset int, sortBy, order string, levelID, stepID uint) ([]*Product, int64, error) {
+	query := r.db.WithContext(ctx).Model(&Product{})
+
+	// Apply filtering
+	if levelID > 0 {
+		query = query.Where("level_id = ?", levelID)
+	}
+	if stepID > 0 {
+		query = query.Where("step_id = ?", stepID)
+	}
+
 	var total int64
-	if err := r.db.WithContext(ctx).Model(&Product{}).Count(&total).Error; err != nil {
+	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
+	query = query.Preload("Level").Preload("Step")
+
+	// Apply sorting
+	if sortBy != "" {
+		if order == "" {
+			order = "asc"
+		}
+		query = query.Order(sortBy + " " + order)
+	} else {
+		query = query.Order("created_at DESC")
+	}
+
 	var products []*Product
-	result := r.db.WithContext(ctx).
-		Order("created_at DESC").
-		Limit(limit).
-		Offset(offset).
-		Find(&products)
+	result := query.Limit(limit).Offset(offset).Find(&products)
 	if result.Error != nil {
 		return nil, 0, result.Error
 	}
@@ -88,4 +106,20 @@ func (r *GormRepository) Delete(ctx context.Context, id string) error {
 	}
 
 	return nil
+}
+
+func (r *GormRepository) ListLevels(ctx context.Context) ([]*Level, error) {
+	var levels []*Level
+	if err := r.db.WithContext(ctx).Order("id ASC").Find(&levels).Error; err != nil {
+		return nil, err
+	}
+	return levels, nil
+}
+
+func (r *GormRepository) ListStepsByLevel(ctx context.Context, levelID uint) ([]*Step, error) {
+	var steps []*Step
+	if err := r.db.WithContext(ctx).Where("level_id = ?", levelID).Order("step_number ASC").Find(&steps).Error; err != nil {
+		return nil, err
+	}
+	return steps, nil
 }
