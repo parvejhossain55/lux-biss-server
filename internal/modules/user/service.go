@@ -31,10 +31,13 @@ func (s *UserService) Create(ctx context.Context, req *CreateUserRequest) (*User
 	}
 
 	user := &User{
-		Name:     req.Name,
-		Email:    strings.ToLower(req.Email),
-		Password: hashedPassword,
-		Role:     req.Role,
+		Name:             req.Name,
+		Email:            strings.ToLower(req.Email),
+		Password:         hashedPassword,
+		Role:             req.Role,
+		ProfilePhoto:     req.ProfilePhoto,
+		TelegramUsername: req.TelegramUsername,
+		TelegramLink:     req.TelegramLink,
 	}
 
 	if err := s.repo.Create(ctx, user); err != nil {
@@ -83,6 +86,15 @@ func (s *UserService) Update(ctx context.Context, id string, req *UpdateUserRequ
 	}
 	if req.IsActive != nil {
 		user.IsActive = *req.IsActive
+	}
+	if req.ProfilePhoto != nil {
+		user.ProfilePhoto = *req.ProfilePhoto
+	}
+	if req.TelegramUsername != nil {
+		user.TelegramUsername = *req.TelegramUsername
+	}
+	if req.TelegramLink != nil {
+		user.TelegramLink = *req.TelegramLink
 	}
 
 	if err := s.repo.Update(ctx, user); err != nil {

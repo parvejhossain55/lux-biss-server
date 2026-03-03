@@ -14,6 +14,10 @@ func RegisterRoutes(rg *gin.RouterGroup, handler *Handler, jwtManager *jwt.Manag
 	products.GET("", handler.List)
 	products.GET("/:id", handler.GetByID)
 
+	// Levels
+	rg.GET("/levels", handler.ListLevels)
+	rg.GET("/levels/:level_id/steps", handler.ListStepsByLevel)
+
 	// Admin only routes
 	protected := products.Group("")
 	protected.Use(middleware.Auth(jwtManager, rdb))

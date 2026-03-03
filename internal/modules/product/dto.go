@@ -2,6 +2,7 @@ package product
 
 type CreateProductRequest struct {
 	LevelID     uint    `json:"level_id" binding:"required,gt=0"`
+	StepID      uint    `json:"step_id" binding:"required,gt=0"`
 	Name        string  `json:"name" binding:"required,min=2,max=255"`
 	Price       float64 `json:"price" binding:"required,gt=0"`
 	Rating      float64 `json:"rating" binding:"omitempty,gte=0,lte=5"`
@@ -13,6 +14,7 @@ type CreateProductRequest struct {
 
 type UpdateProductRequest struct {
 	LevelID     *uint    `json:"level_id" binding:"omitempty,gt=0"`
+	StepID      *uint    `json:"step_id" binding:"omitempty,gt=0"`
 	Name        *string  `json:"name" binding:"omitempty,min=2,max=255"`
 	Price       *float64 `json:"price" binding:"omitempty,gt=0"`
 	Rating      *float64 `json:"rating" binding:"omitempty,gte=0,lte=5"`
@@ -34,10 +36,18 @@ type LevelResponse struct {
 	Name string `json:"name"`
 }
 
+type StepResponse struct {
+	ID         uint   `json:"id"`
+	StepNumber int    `json:"step_number"`
+	Name       string `json:"name"`
+}
+
 type ProductResponse struct {
 	ID          string         `json:"id"`
 	LevelID     uint           `json:"level_id"`
 	Level       *LevelResponse `json:"level,omitempty"`
+	StepID      uint           `json:"step_id"`
+	Step        *StepResponse  `json:"step,omitempty"`
 	Name        string         `json:"name"`
 	Price       float64        `json:"price"`
 	Rating      float64        `json:"rating"`
@@ -53,6 +63,7 @@ func ToResponse(p *Product) *ProductResponse {
 	resp := &ProductResponse{
 		ID:          p.ID,
 		LevelID:     p.LevelID,
+		StepID:      p.StepID,
 		Name:        p.Name,
 		Price:       p.Price,
 		Rating:      p.Rating,
@@ -71,6 +82,14 @@ func ToResponse(p *Product) *ProductResponse {
 		}
 	}
 
+	if p.Step != nil {
+		resp.Step = &StepResponse{
+			ID:         p.Step.ID,
+			StepNumber: p.Step.StepNumber,
+			Name:       p.Step.Name,
+		}
+	}
+
 	return resp
 }
 
@@ -78,6 +97,29 @@ func ToResponseList(products []*Product) []*ProductResponse {
 	responses := make([]*ProductResponse, len(products))
 	for i, p := range products {
 		responses[i] = ToResponse(p)
+	}
+	return responses
+}
+
+func ToLevelResponseList(levels []*Level) []*LevelResponse {
+	responses := make([]*LevelResponse, len(levels))
+	for i, l := range levels {
+		responses[i] = &LevelResponse{
+			ID:   l.ID,
+			Name: l.Name,
+		}
+	}
+	return responses
+}
+
+func ToStepResponseList(steps []*Step) []*StepResponse {
+	responses := make([]*StepResponse, len(steps))
+	for i, s := range steps {
+		responses[i] = &StepResponse{
+			ID:         s.ID,
+			StepNumber: s.StepNumber,
+			Name:       s.Name,
+		}
 	}
 	return responses
 }

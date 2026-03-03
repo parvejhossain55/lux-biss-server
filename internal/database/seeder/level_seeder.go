@@ -21,8 +21,28 @@ func (s *LevelSeeder) Seed(db *gorm.DB) error {
 				if err := db.Create(&level).Error; err != nil {
 					return err
 				}
+				existing = level
 			} else {
 				return err
+			}
+		}
+
+		// Create 20 steps for each level
+		for j := 1; j <= 20; j++ {
+			var existingStep product.Step
+			if err := db.Where("level_id = ? AND step_number = ?", existing.ID, j).First(&existingStep).Error; err != nil {
+				if err == gorm.ErrRecordNotFound {
+					step := product.Step{
+						LevelID:    existing.ID,
+						StepNumber: j,
+						Name:       fmt.Sprintf("Step %d", j),
+					}
+					if err := db.Create(&step).Error; err != nil {
+						return err
+					}
+				} else {
+					return err
+				}
 			}
 		}
 	}

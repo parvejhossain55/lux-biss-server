@@ -46,7 +46,7 @@ func main() {
 	}
 	defer sqlDB.Close()
 
-	if err := db.AutoMigrate(&user.User{}, &product.Level{}, &product.Product{}); err != nil {
+	if err := db.AutoMigrate(&user.User{}, &product.Level{}, &product.Step{}, &product.Product{}); err != nil {
 		appLogger.Fatalf("Failed to auto-migrate: %v", err)
 	}
 	appLogger.Info("Database migration completed")

@@ -20,25 +20,25 @@ const (
 
 func NewPagination(c *gin.Context) Pagination {
 	page := parseIntQuery(c, "page", defaultPage)
-	perPage := parseIntQuery(c, "per_page", defaultPerPage)
+	limit := parseIntQuery(c, "limit", defaultPerPage)
 
 	if page < 1 {
 		page = defaultPage
 	}
 
-	if perPage < 1 {
-		perPage = defaultPerPage
+	if limit < 1 {
+		limit = defaultPerPage
 	}
 
-	if perPage > maxPerPage {
-		perPage = maxPerPage
+	if limit > maxPerPage {
+		limit = maxPerPage
 	}
 
-	offset := (page - 1) * perPage
+	offset := (page - 1) * limit
 
 	return Pagination{
 		Page:    page,
-		PerPage: perPage,
+		PerPage: limit,
 		Offset:  offset,
 	}
 }

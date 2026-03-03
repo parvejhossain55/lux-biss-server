@@ -19,6 +19,7 @@ func NewService(repo Repository, log *logger.Logger) *ProductService {
 func (s *ProductService) Create(ctx context.Context, req *CreateProductRequest) (*Product, error) {
 	product := &Product{
 		LevelID:     req.LevelID,
+		StepID:      req.StepID,
 		Name:        req.Name,
 		Price:       req.Price,
 		Rating:      req.Rating,
@@ -45,8 +46,8 @@ func (s *ProductService) GetByID(ctx context.Context, id string) (*Product, erro
 	return product, nil
 }
 
-func (s *ProductService) List(ctx context.Context, limit, offset int) ([]*Product, int64, error) {
-	return s.repo.List(ctx, limit, offset)
+func (s *ProductService) List(ctx context.Context, limit, offset int, sortBy, order string, levelID, stepID uint) ([]*Product, int64, error) {
+	return s.repo.List(ctx, limit, offset, sortBy, order, levelID, stepID)
 }
 
 func (s *ProductService) Update(ctx context.Context, id string, req *UpdateProductRequest) (*Product, error) {
@@ -57,6 +58,9 @@ func (s *ProductService) Update(ctx context.Context, id string, req *UpdateProdu
 
 	if req.LevelID != nil {
 		product.LevelID = *req.LevelID
+	}
+	if req.StepID != nil {
+		product.StepID = *req.StepID
 	}
 	if req.Name != nil {
 		product.Name = *req.Name
@@ -95,4 +99,12 @@ func (s *ProductService) Delete(ctx context.Context, id string) error {
 	}
 	s.log.Infow("Product deleted successfully", "product_id", id)
 	return nil
+}
+
+func (s *ProductService) ListLevels(ctx context.Context) ([]*Level, error) {
+	return s.repo.ListLevels(ctx)
+}
+
+func (s *ProductService) ListStepsByLevel(ctx context.Context, levelID uint) ([]*Step, error) {
+	return s.repo.ListStepsByLevel(ctx, levelID)
 }

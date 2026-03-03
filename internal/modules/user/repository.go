@@ -82,10 +82,13 @@ func (r *GormRepository) Update(ctx context.Context, user *User) error {
 	result := r.db.WithContext(ctx).
 		Model(user).
 		Updates(map[string]interface{}{
-			"name":      user.Name,
-			"email":     user.Email,
-			"role":      user.Role,
-			"is_active": user.IsActive,
+			"name":              user.Name,
+			"email":             user.Email,
+			"role":              user.Role,
+			"is_active":         user.IsActive,
+			"profile_photo":     user.ProfilePhoto,
+			"telegram_username": user.TelegramUsername,
+			"telegram_link":     user.TelegramLink,
 		})
 	if result.Error != nil {
 		return result.Error

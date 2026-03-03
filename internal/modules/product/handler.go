@@ -1,6 +1,8 @@
 package product
 
 import (
+	"strconv"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/parvej/luxbiss_server/internal/common"
@@ -66,8 +68,46 @@ func (h *Handler) GetByID(c *gin.Context) {
 
 func (h *Handler) List(c *gin.Context) {
 	pagination := common.NewPagination(c)
+	sortBy := c.Query("sort_by")
+	order := c.Query("order")
 
-	products, total, err := h.service.List(c.Request.Context(), pagination.PerPage, pagination.Offset)
+	// Map JSON field names to DB column names if needed
+	sortFieldMapping := map[string]string{
+		"price":      "price",
+		"rating":     "rating",
+		"name":       "name",
+		"created_at": "created_at",
+	}
+
+	dbSortBy := ""
+	if sortBy != "" {
+		if field, ok := sortFieldMapping[sortBy]; ok {
+			dbSortBy = field
+		}
+	}
+
+	// Normalize order
+	if order != "desc" {
+		order = "asc"
+	}
+
+	levelIDStr := c.Query("level_id")
+	var levelID uint
+	if levelIDStr != "" {
+		if val, err := strconv.ParseUint(levelIDStr, 10, 32); err == nil {
+			levelID = uint(val)
+		}
+	}
+
+	stepIDStr := c.Query("step_id")
+	var stepID uint
+	if stepIDStr != "" {
+		if val, err := strconv.ParseUint(stepIDStr, 10, 32); err == nil {
+			stepID = uint(val)
+		}
+	}
+
+	products, total, err := h.service.List(c.Request.Context(), pagination.PerPage, pagination.Offset, dbSortBy, order, levelID, stepID)
 	if err != nil {
 		common.InternalError(c, "Failed to list products")
 		return
@@ -127,4 +167,31 @@ func (h *Handler) Delete(c *gin.Context) {
 	}
 
 	common.NoContent(c)
+}
+
+func (h *Handler) ListLevels(c *gin.Context) {
+	levels, err := h.service.ListLevels(c.Request.Context())
+	if err != nil {
+		common.InternalError(c, "Failed to list levels")
+		return
+	}
+
+	common.OK(c, "Levels retrieved successfully", ToLevelResponseList(levels))
+}
+
+func (h *Handler) ListStepsByLevel(c *gin.Context) {
+	levelIDStr := c.Param("level_id")
+	levelID, err := strconv.ParseUint(levelIDStr, 10, 32)
+	if err != nil {
+		common.BadRequest(c, "Invalid level ID", nil)
+		return
+	}
+
+	steps, err := h.service.ListStepsByLevel(c.Request.Context(), uint(levelID))
+	if err != nil {
+		common.InternalError(c, "Failed to list steps")
+		return
+	}
+
+	common.OK(c, "Steps retrieved successfully", ToStepResponseList(steps))
 }
