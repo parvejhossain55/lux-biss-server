@@ -20,6 +20,7 @@ func RegisterRoutes(rg *gin.RouterGroup, handler *Handler, rdb *redis.Client) {
 		auth.POST("/logout", handler.Logout)
 		auth.POST("/google", handler.GoogleLogin)
 		auth.POST("/forgot-password", handler.ForgotPassword)
+		auth.POST("/verify-otp", handler.VerifyOTP)
 		auth.POST("/reset-password", handler.ResetPassword)
 	}
 }

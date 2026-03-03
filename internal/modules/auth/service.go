@@ -206,7 +206,6 @@ func (s *Service) GoogleLogin(ctx context.Context, req *GoogleOAuthRequest) (*Au
 func (s *Service) ForgotPassword(ctx context.Context, req *ForgotPasswordRequest) error {
 	existingUser, err := s.userService.GetByEmail(ctx, req.Email)
 	if err != nil {
-		// Don't reveal if user exists
 		return nil
 	}
 
@@ -239,11 +238,16 @@ func (s *Service) ForgotPassword(ctx context.Context, req *ForgotPasswordRequest
 }
 
 func (s *Service) ResetPassword(ctx context.Context, req *ResetPasswordRequest) error {
+	if req.Password != req.ConfirmPassword {
+		return common.ErrBadRequest("Passwords do not match")
+	}
+
 	otpKey := fmt.Sprintf("otp:%s", req.Email)
 	attemptsKey := fmt.Sprintf("otp_attempts:%s", req.Email)
 
 	// Increment attempts
 	attempts, _ := s.rdb.Incr(ctx, attemptsKey).Result()
+
 	if attempts == 1 {
 		_ = s.rdb.Expire(ctx, attemptsKey, 15*time.Minute)
 	}
@@ -280,6 +284,23 @@ func (s *Service) ResetPassword(ctx context.Context, req *ResetPasswordRequest) 
 	}
 
 	_ = s.rdb.Del(ctx, otpKey, attemptsKey)
+	return nil
+}
+
+func (s *Service) VerifyOTP(ctx context.Context, req *VerifyOTPRequest) error {
+	otpKey := fmt.Sprintf("otp:%s", req.Email)
+	storedOTP, err := s.rdb.Get(ctx, otpKey).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return common.ErrBadRequest("Invalid or expired OTP")
+		}
+		return common.ErrInternal(err)
+	}
+
+	if storedOTP != req.OTP {
+		return common.ErrBadRequest("Invalid OTP")
+	}
+
 	return nil
 }
 

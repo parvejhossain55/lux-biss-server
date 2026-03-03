@@ -196,3 +196,27 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 
 	common.OK(c, "Password reset successful", nil)
 }
+
+func (h *Handler) VerifyOTP(c *gin.Context) {
+	var req VerifyOTPRequest
+	if errs := common.ValidateRequest(c, &req); errs != nil {
+		common.BadRequest(c, "Validation failed", errs)
+		return
+	}
+
+	err := h.service.VerifyOTP(c.Request.Context(), &req)
+	if err != nil {
+		if appErr, ok := common.IsAppError(err); ok {
+			c.JSON(appErr.StatusCode, common.Response{
+				Success:   false,
+				Message:   appErr.Message,
+				RequestID: c.GetString("request_id"),
+			})
+			return
+		}
+		common.InternalError(c, "Failed to verify OTP")
+		return
+	}
+
+	common.OK(c, "OTP verified successfully", nil)
+}
