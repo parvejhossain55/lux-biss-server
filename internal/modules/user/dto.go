@@ -11,6 +11,7 @@ type CreateUserRequest struct {
 }
 
 type UpdateUserRequest struct {
+	// Basic
 	Name             string  `json:"name" validate:"omitempty,min=2,max=100"`
 	Email            string  `json:"email" validate:"omitempty,email"`
 	Role             *string `json:"role" validate:"omitempty,oneof=user admin"`
@@ -18,6 +19,17 @@ type UpdateUserRequest struct {
 	ProfilePhoto     *string `json:"profile_photo" validate:"omitempty,url"`
 	TelegramUsername *string `json:"telegram_username" validate:"omitempty"`
 	TelegramLink     *string `json:"telegram_link" validate:"omitempty"`
+	// Personal Information
+	DateOfBirth *string `json:"date_of_birth" validate:"omitempty"`
+	Gender      *string `json:"gender" validate:"omitempty,oneof=Male Female Other"`
+	Phone       *string `json:"phone" validate:"omitempty,max=30"`
+	Address     *string `json:"address" validate:"omitempty,max=500"`
+	Country     *string `json:"country" validate:"omitempty,max=100"`
+	// Payment Wallet Information
+	PaymentMethod     *string `json:"payment_method" validate:"omitempty,max=100"`
+	PaymentCurrency   *string `json:"payment_currency" validate:"omitempty,max=50"`
+	PaymentNetwork    *string `json:"payment_network" validate:"omitempty,max=100"`
+	WithdrawalAddress *string `json:"withdrawal_address" validate:"omitempty,max=255"`
 }
 
 type UserResponse struct {
@@ -29,22 +41,42 @@ type UserResponse struct {
 	ProfilePhoto     string `json:"profile_photo"`
 	TelegramUsername string `json:"telegram_username"`
 	TelegramLink     string `json:"telegram_link"`
-	CreatedAt        string `json:"created_at"`
-	UpdatedAt        string `json:"updated_at"`
+	// Personal Information
+	DateOfBirth string `json:"date_of_birth"`
+	Gender      string `json:"gender"`
+	Phone       string `json:"phone"`
+	Address     string `json:"address"`
+	Country     string `json:"country"`
+	// Payment Wallet Information
+	PaymentMethod     string `json:"payment_method"`
+	PaymentCurrency   string `json:"payment_currency"`
+	PaymentNetwork    string `json:"payment_network"`
+	WithdrawalAddress string `json:"withdrawal_address"`
+	CreatedAt         string `json:"created_at"`
+	UpdatedAt         string `json:"updated_at"`
 }
 
 func ToResponse(u *User) *UserResponse {
 	return &UserResponse{
-		ID:               u.ID,
-		Name:             u.Name,
-		Email:            u.Email,
-		Role:             u.Role,
-		IsActive:         u.IsActive,
-		ProfilePhoto:     u.ProfilePhoto,
-		TelegramUsername: u.TelegramUsername,
-		TelegramLink:     u.TelegramLink,
-		CreatedAt:        u.CreatedAt.Format("2006-01-02T15:04:05Z"),
-		UpdatedAt:        u.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		ID:                u.ID,
+		Name:              u.Name,
+		Email:             u.Email,
+		Role:              u.Role,
+		IsActive:          u.IsActive,
+		ProfilePhoto:      u.ProfilePhoto,
+		TelegramUsername:  u.TelegramUsername,
+		TelegramLink:      u.TelegramLink,
+		DateOfBirth:       u.DateOfBirth,
+		Gender:            u.Gender,
+		Phone:             u.Phone,
+		Address:           u.Address,
+		Country:           u.Country,
+		PaymentMethod:     u.PaymentMethod,
+		PaymentCurrency:   u.PaymentCurrency,
+		PaymentNetwork:    u.PaymentNetwork,
+		WithdrawalAddress: u.WithdrawalAddress,
+		CreatedAt:         u.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		UpdatedAt:         u.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 }
 

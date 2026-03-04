@@ -96,6 +96,33 @@ func (s *UserService) Update(ctx context.Context, id string, req *UpdateUserRequ
 	if req.TelegramLink != nil {
 		user.TelegramLink = *req.TelegramLink
 	}
+	if req.DateOfBirth != nil {
+		user.DateOfBirth = *req.DateOfBirth
+	}
+	if req.Gender != nil {
+		user.Gender = *req.Gender
+	}
+	if req.Phone != nil {
+		user.Phone = *req.Phone
+	}
+	if req.Address != nil {
+		user.Address = *req.Address
+	}
+	if req.Country != nil {
+		user.Country = *req.Country
+	}
+	if req.PaymentMethod != nil {
+		user.PaymentMethod = *req.PaymentMethod
+	}
+	if req.PaymentCurrency != nil {
+		user.PaymentCurrency = *req.PaymentCurrency
+	}
+	if req.PaymentNetwork != nil {
+		user.PaymentNetwork = *req.PaymentNetwork
+	}
+	if req.WithdrawalAddress != nil {
+		user.WithdrawalAddress = *req.WithdrawalAddress
+	}
 
 	if err := s.repo.Update(ctx, user); err != nil {
 		s.log.Errorw("Failed to update user", "error", err, "user_id", id)
