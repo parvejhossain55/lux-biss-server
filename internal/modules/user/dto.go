@@ -33,14 +33,15 @@ type UpdateUserRequest struct {
 }
 
 type UserResponse struct {
-	ID               string `json:"id"`
-	Name             string `json:"name"`
-	Email            string `json:"email"`
-	Role             string `json:"role"`
-	IsActive         bool   `json:"is_active"`
-	ProfilePhoto     string `json:"profile_photo"`
-	TelegramUsername string `json:"telegram_username"`
-	TelegramLink     string `json:"telegram_link"`
+	ID               string  `json:"id"`
+	Name             string  `json:"name"`
+	Email            string  `json:"email"`
+	Role             string  `json:"role"`
+	IsActive         bool    `json:"is_active"`
+	ProfilePhoto     string  `json:"profile_photo"`
+	TelegramUsername string  `json:"telegram_username"`
+	TelegramLink     string  `json:"telegram_link"`
+	Balance          float64 `json:"balance"`
 	// Personal Information
 	DateOfBirth string `json:"date_of_birth"`
 	Gender      string `json:"gender"`
@@ -66,6 +67,7 @@ func ToResponse(u *User) *UserResponse {
 		ProfilePhoto:      u.ProfilePhoto,
 		TelegramUsername:  u.TelegramUsername,
 		TelegramLink:      u.TelegramLink,
+		Balance:           u.Balance,
 		DateOfBirth:       u.DateOfBirth,
 		Gender:            u.Gender,
 		Phone:             u.Phone,

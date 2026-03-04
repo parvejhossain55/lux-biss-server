@@ -15,6 +15,7 @@ import (
 	"github.com/parvej/luxbiss_server/internal/modules/health"
 	"github.com/parvej/luxbiss_server/internal/modules/manager"
 	"github.com/parvej/luxbiss_server/internal/modules/product"
+	"github.com/parvej/luxbiss_server/internal/modules/transaction"
 	"github.com/parvej/luxbiss_server/internal/modules/user"
 	"github.com/parvej/luxbiss_server/internal/modules/wallet"
 	"github.com/parvej/luxbiss_server/internal/server"
@@ -49,7 +50,7 @@ func main() {
 	}
 	defer sqlDB.Close()
 
-	if err := db.AutoMigrate(&user.User{}, &product.Level{}, &product.Step{}, &product.Product{}, &wallet.Wallet{}, &giftcard.Giftcard{}, &manager.Manager{}); err != nil {
+	if err := db.AutoMigrate(&user.User{}, &product.Level{}, &product.Step{}, &product.Product{}, &wallet.Wallet{}, &giftcard.Giftcard{}, &manager.Manager{}, &transaction.Transaction{}); err != nil {
 		appLogger.Fatalf("Failed to auto-migrate: %v", err)
 	}
 	appLogger.Info("Database migration completed")
@@ -141,4 +142,9 @@ func registerRoutes(
 	managerService := manager.NewService(managerRepo, appLogger)
 	managerHandler := manager.NewHandler(managerService, appLogger)
 	manager.RegisterRoutes(api, managerHandler, jwtManager, rdb)
+
+	transactionRepo := transaction.NewGormRepository(db)
+	transactionService := transaction.NewService(transactionRepo, userService, appLogger)
+	transactionHandler := transaction.NewHandler(transactionService, appLogger)
+	transaction.RegisterRoutes(api, transactionHandler, jwtManager, rdb)
 }
