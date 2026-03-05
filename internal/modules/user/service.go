@@ -133,6 +133,15 @@ func (s *UserService) Update(ctx context.Context, id string, req *UpdateUserRequ
 	return user, nil
 }
 
+func (s *UserService) UpdateBalance(ctx context.Context, userID string, amount float64) error {
+	if err := s.repo.UpdateBalance(ctx, userID, amount); err != nil {
+		s.log.Errorw("Failed to update user balance", "error", err, "user_id", userID, "amount", amount)
+		return common.ErrInternal(err)
+	}
+	s.log.Infow("User balance updated successfully", "user_id", userID, "amount", amount)
+	return nil
+}
+
 func (s *UserService) UpdatePassword(ctx context.Context, id string, hashedPassword string) error {
 	if err := s.repo.UpdatePassword(ctx, id, hashedPassword); err != nil {
 		s.log.Errorw("Failed to update user password", "error", err, "user_id", id)

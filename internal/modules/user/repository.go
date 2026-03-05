@@ -110,6 +110,21 @@ func (r *GormRepository) Update(ctx context.Context, user *User) error {
 	return nil
 }
 
+func (r *GormRepository) UpdateBalance(ctx context.Context, userID string, amount float64) error {
+	result := r.db.WithContext(ctx).
+		Model(&User{}).
+		Where("id = ?", userID).
+		Update("balance", gorm.Expr("balance + ?", amount))
+
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return common.ErrNotFound("User")
+	}
+	return nil
+}
+
 func (r *GormRepository) UpdatePassword(ctx context.Context, id string, hashedPassword string) error {
 	result := r.db.WithContext(ctx).
 		Model(&User{}).
