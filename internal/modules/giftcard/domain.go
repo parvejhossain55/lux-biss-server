@@ -43,4 +43,5 @@ type Service interface {
 	List(ctx context.Context, limit, offset int) ([]*Giftcard, int64, error)
 	Delete(ctx context.Context, id string) error
 	Apply(ctx context.Context, req *ApplyGiftcardRequest, userID, userEmail string) (*Giftcard, error)
+	Verify(ctx context.Context, req *VerifyGiftcardRequest) (*Giftcard, error)
 }

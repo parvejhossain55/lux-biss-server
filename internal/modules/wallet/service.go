@@ -20,6 +20,7 @@ func (s *WalletService) Create(ctx context.Context, req *CreateWalletRequest) (*
 	wallet := &Wallet{
 		CoinName:      req.CoinName,
 		Network:       req.Network,
+		CoinLogoURL:   req.CoinLogoURL,
 		WalletAddress: req.WalletAddress,
 		QrCodeURL:     req.QrCodeURL,
 	}
@@ -48,6 +49,9 @@ func (s *WalletService) Update(ctx context.Context, id string, req *UpdateWallet
 	}
 	if req.Network != nil {
 		wallet.Network = *req.Network
+	}
+	if req.CoinLogoURL != nil {
+		wallet.CoinLogoURL = *req.CoinLogoURL
 	}
 	if req.WalletAddress != nil {
 		wallet.WalletAddress = *req.WalletAddress

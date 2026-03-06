@@ -119,8 +119,6 @@ func (r *GormRepository) Delete(ctx context.Context, id string) error {
 
 func (r *GormRepository) GetSummary(ctx context.Context, userID string, days int) (*Summary, error) {
 	now := time.Now()
-	startDate := now.AddDate(0, 0, -days)
-	prevStartDate := startDate.AddDate(0, 0, -days)
 
 	// Base query condition for the user (only completed transactions count towards real balance)
 	baseCond := "user_id = ? AND status = ?"
@@ -131,59 +129,51 @@ func (r *GormRepository) GetSummary(ctx context.Context, userID string, days int
 	r.db.WithContext(ctx).Model(&Transaction{}).Where(baseCond+" AND type = ?", append(baseArgs, TypeWithdrawal)...).Select("COALESCE(SUM(amount), 0)").Scan(&totalWith)
 	availableBalance := totalDep - totalWith
 
-	// Calculate Current Period Stats
-	var currentDep, currentWith float64
-	r.db.WithContext(ctx).Model(&Transaction{}).Where(baseCond+" AND type = ? AND created_at >= ?", append(baseArgs, TypeDeposit, startDate)...).Select("COALESCE(SUM(amount), 0)").Scan(&currentDep)
-	r.db.WithContext(ctx).Model(&Transaction{}).Where(baseCond+" AND type = ? AND created_at >= ?", append(baseArgs, TypeWithdrawal, startDate)...).Select("COALESCE(SUM(amount), 0)").Scan(&currentWith)
-
-	// Calculate Previous Period Stats
-	var prevDep, prevWith float64
-	r.db.WithContext(ctx).Model(&Transaction{}).Where(baseCond+" AND type = ? AND created_at >= ? AND created_at < ?", append(baseArgs, TypeDeposit, prevStartDate, startDate)...).Select("COALESCE(SUM(amount), 0)").Scan(&prevDep)
-	r.db.WithContext(ctx).Model(&Transaction{}).Where(baseCond+" AND type = ? AND created_at >= ? AND created_at < ?", append(baseArgs, TypeWithdrawal, prevStartDate, startDate)...).Select("COALESCE(SUM(amount), 0)").Scan(&prevWith)
-
-	// Percentage Change calculation
-	depChange := calculatePercentageChange(currentDep, prevDep)
-	withChange := calculatePercentageChange(currentWith, prevWith)
-
-	// Calculate Withdrawal Report (Always last 6 months)
-	reportStartDate := now.AddDate(0, -6, 0)
+	// Calculate Withdrawal Report (Daily for the requested period)
+	startDate := now.AddDate(0, 0, -days)
 	var reportItems []ReportItem
+
+	// Fetch daily withdrawal totals from DB
 	var dbResults []struct {
-		Label string
+		Date  time.Time
 		Total float64
 	}
 
 	r.db.WithContext(ctx).Model(&Transaction{}).
-		Select("TO_CHAR(created_at, 'Mon') as label, TO_CHAR(created_at, 'YYYY-MM') as sort_key, SUM(amount) as total").
-		Where(baseCond+" AND type = ? AND created_at >= ?", append(baseArgs, TypeWithdrawal, reportStartDate)...).
-		Group("label, sort_key").
-		Order("sort_key ASC").
+		Select("DATE(created_at) as date, SUM(amount) as total").
+		Where(baseCond+" AND type = ? AND created_at >= ?", append(baseArgs, TypeWithdrawal, startDate)...).
+		Group("date").
+		Order("date ASC").
 		Scan(&dbResults)
 
+	// Create a map for easy lookup
+	dbMap := make(map[string]float64)
 	for _, res := range dbResults {
+		dbMap[res.Date.Format("2006-01-02")] = res.Total
+	}
+
+	// Fill in all days in the period (including zeros)
+	for i := days; i >= 0; i-- {
+		d := now.AddDate(0, 0, -i)
+		dateStr := d.Format("2006-01-02")
+
 		reportItems = append(reportItems, ReportItem{
-			Month: res.Label,
-			Value: res.Total,
+			Date:   d.Format(time.RFC3339), // ISO 8601 format
+			Amount: dbMap[dateStr],         // Will be 0 if not found in map
 		})
 	}
 
+	var holdBalance float64
+	r.db.WithContext(ctx).Model(&Transaction{}).
+		Where("user_id = ? AND type = ? AND status = ?", userID, TypeDeposit, StatusPending).
+		Select("COALESCE(SUM(amount), 0)").Scan(&holdBalance)
+
 	return &Summary{
 		AvailableBalance: availableBalance,
+		HoldBalance:      holdBalance,
 		TotalDeposit:     totalDep,
 		TotalWithdrawal:  totalWith,
-		DepositChange:    depChange,
-		WithdrawalChange: withChange,
 		PeriodDays:       days,
 		WithdrawReport:   reportItems,
 	}, nil
-}
-
-func calculatePercentageChange(current, previous float64) float64 {
-	if previous == 0 {
-		if current > 0 {
-			return 100.0 // 100% increase if prev was 0
-		}
-		return 0.0
-	}
-	return ((current - previous) / previous) * 100.0
 }

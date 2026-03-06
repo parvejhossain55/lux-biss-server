@@ -17,6 +17,8 @@ func RegisterRoutes(
 	{
 		// Apply/Redeem giftcard route
 		giftcards.POST("/apply", middleware.Auth(jwtManager, rdb), handler.Apply)
+		// Verify giftcard (check code + balance before redeeming)
+		giftcards.POST("/verify", middleware.Auth(jwtManager, rdb), handler.Verify)
 
 		// Admin only routes
 		giftcards.Use(middleware.Auth(jwtManager, rdb), middleware.RequireRole("admin"))

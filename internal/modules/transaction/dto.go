@@ -31,10 +31,9 @@ type TransactionResponse struct {
 
 type SummaryResponse struct {
 	AvailableBalance float64      `json:"available_balance"`
+	HoldBalance      float64      `json:"hold_balance"`
 	TotalDeposit     float64      `json:"total_deposit"`
 	TotalWithdrawal  float64      `json:"total_withdrawal"`
-	DepositChange    float64      `json:"deposit_change_percent"`
-	WithdrawalChange float64      `json:"withdrawal_change_percent"`
 	PeriodDays       int          `json:"period_days"`
 	WithdrawReport   []ReportItem `json:"withdraw_report"`
 }

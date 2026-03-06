@@ -11,6 +11,7 @@ type Wallet struct {
 	ID            string         `json:"id" gorm:"type:varchar(36);primaryKey"`
 	CoinName      string         `json:"coin_name" gorm:"type:varchar(50);not null;uniqueIndex:idx_coin_network"`
 	Network       string         `json:"network" gorm:"type:varchar(50);not null;uniqueIndex:idx_coin_network"`
+	CoinLogoURL   string         `json:"coin_logo_url" gorm:"type:varchar(255)"`
 	WalletAddress string         `json:"wallet_address" gorm:"type:varchar(255);not null"`
 	QrCodeURL     string         `json:"qr_code_url" gorm:"type:varchar(255)"`
 	CreatedAt     time.Time      `json:"created_at" gorm:"autoCreateTime"`

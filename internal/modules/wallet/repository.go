@@ -59,6 +59,7 @@ func (r *GormRepository) Update(ctx context.Context, wallet *Wallet) error {
 		Updates(map[string]interface{}{
 			"coin_name":      wallet.CoinName,
 			"network":        wallet.Network,
+			"coin_logo_url":  wallet.CoinLogoURL,
 			"wallet_address": wallet.WalletAddress,
 			"qr_code_url":    wallet.QrCodeURL,
 		})

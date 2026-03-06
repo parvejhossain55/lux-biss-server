@@ -9,6 +9,10 @@ type ApplyGiftcardRequest struct {
 	RedeemCode string `json:"redeem_code" validate:"required"`
 }
 
+type VerifyGiftcardRequest struct {
+	RedeemCode string `json:"redeem_code" validate:"required"`
+}
+
 type GiftcardResponse struct {
 	ID         string  `json:"id"`
 	RedeemCode string  `json:"redeem_code"`

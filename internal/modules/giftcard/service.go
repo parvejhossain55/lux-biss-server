@@ -9,15 +9,19 @@ import (
 
 	"github.com/parvej/luxbiss_server/internal/common"
 	"github.com/parvej/luxbiss_server/internal/logger"
+	"github.com/parvej/luxbiss_server/internal/modules/transaction"
+	"github.com/parvej/luxbiss_server/internal/modules/user"
 )
 
 type GiftcardService struct {
-	repo Repository
-	log  *logger.Logger
+	repo        Repository
+	userService user.Service
+	txRepo      transaction.Repository
+	log         *logger.Logger
 }
 
-func NewService(repo Repository, log *logger.Logger) *GiftcardService {
-	return &GiftcardService{repo: repo, log: log}
+func NewService(repo Repository, userService user.Service, txRepo transaction.Repository, log *logger.Logger) *GiftcardService {
+	return &GiftcardService{repo: repo, userService: userService, txRepo: txRepo, log: log}
 }
 
 func GenerateRedeemCode() string {
@@ -76,6 +80,7 @@ func (s *GiftcardService) Apply(ctx context.Context, req *ApplyGiftcardRequest, 
 	}
 
 	now := time.Now()
+
 	giftcard.Status = StatusUsed
 	giftcard.UserID = &userID
 	giftcard.UserEmail = userEmail
@@ -86,6 +91,40 @@ func (s *GiftcardService) Apply(ctx context.Context, req *ApplyGiftcardRequest, 
 		return nil, common.ErrInternal(err)
 	}
 
-	s.log.Infow("Giftcard applied successfully", "giftcard_id", giftcard.ID, "user_id", userID)
+	// Credit the gift card amount to the user's balance
+	if err := s.userService.UpdateBalance(ctx, userID, giftcard.Amount); err != nil {
+		s.log.Errorw("Giftcard applied but failed to update user balance", "error", err, "user_id", userID, "amount", giftcard.Amount)
+		return nil, common.ErrInternal(err)
+	}
+
+	// Create a completed deposit transaction as a record
+	tx := &transaction.Transaction{
+		UserID: userID,
+		Type:   transaction.TypeDeposit,
+		Amount: giftcard.Amount,
+		Status: transaction.StatusCompleted,
+		TxHash: common.GenerateHash(),
+		Note:   "Gift card redeemed: " + giftcard.RedeemCode,
+	}
+	if err := s.txRepo.Create(ctx, tx); err != nil {
+		s.log.Errorw("Giftcard applied but failed to create transaction record", "error", err, "user_id", userID)
+		// Non-fatal: balance is already updated, just log the error
+	}
+
+	s.log.Infow("Giftcard applied successfully", "giftcard_id", giftcard.ID, "user_id", userID, "amount", giftcard.Amount)
+	return giftcard, nil
+}
+
+func (s *GiftcardService) Verify(ctx context.Context, req *VerifyGiftcardRequest) (*Giftcard, error) {
+	code := strings.ToUpper(strings.TrimSpace(req.RedeemCode))
+	giftcard, err := s.repo.GetByCode(ctx, code)
+	if err != nil {
+		return nil, common.ErrNotFound("Giftcard")
+	}
+
+	if giftcard.Status != StatusAvailable {
+		return nil, common.ErrBadRequest("Giftcard has already been used")
+	}
+
 	return giftcard, nil
 }

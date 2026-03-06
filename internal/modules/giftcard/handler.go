@@ -101,3 +101,27 @@ func (h *Handler) Apply(c *gin.Context) {
 
 	common.OK(c, "Giftcard applied successfully", ToResponse(giftcard))
 }
+
+func (h *Handler) Verify(c *gin.Context) {
+	var req VerifyGiftcardRequest
+	if errs := common.ValidateRequest(c, &req); errs != nil {
+		common.BadRequest(c, "Validation failed", errs)
+		return
+	}
+
+	giftcard, err := h.service.Verify(c.Request.Context(), &req)
+	if err != nil {
+		if appErr, ok := common.IsAppError(err); ok {
+			c.JSON(appErr.StatusCode, common.Response{
+				Success:   false,
+				Message:   appErr.Message,
+				RequestID: c.GetString("request_id"),
+			})
+			return
+		}
+		common.InternalError(c, "Failed to verify giftcard")
+		return
+	}
+
+	common.OK(c, "Giftcard verified successfully", ToResponse(giftcard))
+}

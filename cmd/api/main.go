@@ -133,11 +133,6 @@ func registerRoutes(
 	walletHandler := wallet.NewHandler(walletService, appLogger)
 	wallet.RegisterRoutes(api, walletHandler, jwtManager, rdb)
 
-	giftcardRepo := giftcard.NewGormRepository(db)
-	giftcardService := giftcard.NewService(giftcardRepo, appLogger)
-	giftcardHandler := giftcard.NewHandler(giftcardService, appLogger)
-	giftcard.RegisterRoutes(api, giftcardHandler, jwtManager, rdb)
-
 	managerRepo := manager.NewGormRepository(db)
 	managerService := manager.NewService(managerRepo, appLogger)
 	managerHandler := manager.NewHandler(managerService, appLogger)
@@ -147,4 +142,9 @@ func registerRoutes(
 	transactionService := transaction.NewService(transactionRepo, userService, appLogger)
 	transactionHandler := transaction.NewHandler(transactionService, appLogger)
 	transaction.RegisterRoutes(api, transactionHandler, jwtManager, rdb)
+
+	giftcardRepo := giftcard.NewGormRepository(db)
+	giftcardService := giftcard.NewService(giftcardRepo, userService, transactionRepo, appLogger)
+	giftcardHandler := giftcard.NewHandler(giftcardService, appLogger)
+	giftcard.RegisterRoutes(api, giftcardHandler, jwtManager, rdb)
 }
