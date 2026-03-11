@@ -19,12 +19,23 @@ func RegisterRoutes(rg *gin.RouterGroup, handler *Handler, jwtManager *jwt.Manag
 	rg.GET("/levels/:level_id/steps", handler.ListStepsByLevel)
 
 	// Admin only routes
-	protected := products.Group("")
+	protected := rg.Group("")
 	protected.Use(middleware.Auth(jwtManager, rdb))
 	protected.Use(middleware.RequireRole("admin"))
 	{
-		protected.POST("", handler.Create)
-		protected.PUT("/:id", handler.Update)
-		protected.DELETE("/:id", handler.Delete)
+		// Products
+		protected.POST("/products", handler.Create)
+		protected.PUT("/products/:id", handler.Update)
+		protected.DELETE("/products/:id", handler.Delete)
+
+		// Levels
+		protected.POST("/levels", handler.CreateLevel)
+		protected.PUT("/levels/:id", handler.UpdateLevel)
+		protected.DELETE("/levels/:id", handler.DeleteLevel)
+
+		// Steps
+		protected.POST("/steps", handler.CreateStep)
+		protected.PUT("/steps/:id", handler.UpdateStep)
+		protected.DELETE("/steps/:id", handler.DeleteStep)
 	}
 }

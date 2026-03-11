@@ -89,7 +89,7 @@ func (s *Service) Login(ctx context.Context, req *LoginRequest) (*AuthResponse, 
 		return nil, common.ErrUnauthorized("Invalid credentials")
 	}
 
-	if !existingUser.IsActive {
+	if !isLoginAllowed(existingUser.Status) {
 		return nil, common.ErrForbidden("Your account has been deactivated")
 	}
 
@@ -129,7 +129,7 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*AuthR
 		return nil, common.ErrUnauthorized("User not found")
 	}
 
-	if !existingUser.IsActive {
+	if !isLoginAllowed(existingUser.Status) {
 		return nil, common.ErrForbidden("Your account has been deactivated")
 	}
 
@@ -182,7 +182,7 @@ func (s *Service) GoogleLogin(ctx context.Context, req *GoogleOAuthRequest) (*Au
 		}
 	}
 
-	if !existingUser.IsActive {
+	if !isLoginAllowed(existingUser.Status) {
 		return nil, common.ErrForbidden("Your account has been deactivated")
 	}
 
@@ -201,6 +201,12 @@ func (s *Service) GoogleLogin(ctx context.Context, req *GoogleOAuthRequest) (*Au
 		RefreshToken: tokens.RefreshToken,
 		User:         user.ToResponse(existingUser),
 	}, nil
+}
+
+func isLoginAllowed(status string) bool {
+	// Users who completed all levels should still be able to log in.
+	// Only suspended/ignored users are blocked.
+	return status == user.StatusActive || status == user.StatusCompleted
 }
 
 func (s *Service) ForgotPassword(ctx context.Context, req *ForgotPasswordRequest) error {

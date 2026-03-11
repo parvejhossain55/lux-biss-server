@@ -45,7 +45,7 @@ type Product struct {
 	Rating      float64        `json:"rating" gorm:"type:decimal(2,1);default:0.0"`
 	MinQuantity int            `json:"min_quantity" gorm:"not null;default:1"`
 	MaxQuantity int            `json:"max_quantity" gorm:"not null;default:100"`
-	ImageURL    string         `json:"image_url" gorm:"type:varchar(255)"`
+	ImageURL    string         `json:"image_url" gorm:"type:text"`
 	Description string         `json:"description" gorm:"type:text"`
 	CreatedAt   time.Time      `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt   time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
@@ -62,8 +62,20 @@ type Repository interface {
 	List(ctx context.Context, limit, offset int, sortBy, order string, levelID, stepID uint) ([]*Product, int64, error)
 	Update(ctx context.Context, product *Product) error
 	Delete(ctx context.Context, id string) error
-	ListLevels(ctx context.Context) ([]*Level, error)
-	ListStepsByLevel(ctx context.Context, levelID uint) ([]*Step, error)
+
+	// Level operations
+	CreateLevel(ctx context.Context, level *Level) error
+	GetLevelByID(ctx context.Context, id uint) (*Level, error)
+	ListLevels(ctx context.Context, limit, offset int) ([]*Level, int64, error)
+	UpdateLevel(ctx context.Context, level *Level) error
+	DeleteLevel(ctx context.Context, id uint) error
+
+	// Step operations
+	CreateStep(ctx context.Context, step *Step) error
+	GetStepByID(ctx context.Context, id uint) (*Step, error)
+	ListStepsByLevel(ctx context.Context, levelID uint, limit, offset int) ([]*Step, int64, error)
+	UpdateStep(ctx context.Context, step *Step) error
+	DeleteStep(ctx context.Context, id uint) error
 }
 
 type Service interface {
@@ -72,6 +84,18 @@ type Service interface {
 	List(ctx context.Context, limit, offset int, sortBy, order string, levelID, stepID uint) ([]*Product, int64, error)
 	Update(ctx context.Context, id string, req *UpdateProductRequest) (*Product, error)
 	Delete(ctx context.Context, id string) error
-	ListLevels(ctx context.Context) ([]*Level, error)
-	ListStepsByLevel(ctx context.Context, levelID uint) ([]*Step, error)
+
+	// Level operations
+	CreateLevel(ctx context.Context, req *CreateLevelRequest) (*Level, error)
+	GetLevelByID(ctx context.Context, id uint) (*Level, error)
+	ListLevels(ctx context.Context, limit, offset int) ([]*Level, int64, error)
+	UpdateLevel(ctx context.Context, id uint, req *UpdateLevelRequest) (*Level, error)
+	DeleteLevel(ctx context.Context, id uint) error
+
+	// Step operations
+	CreateStep(ctx context.Context, req *CreateStepRequest) (*Step, error)
+	GetStepByID(ctx context.Context, id uint) (*Step, error)
+	ListStepsByLevel(ctx context.Context, levelID uint, limit, offset int) ([]*Step, int64, error)
+	UpdateStep(ctx context.Context, id uint, req *UpdateStepRequest) (*Step, error)
+	DeleteStep(ctx context.Context, id uint) error
 }

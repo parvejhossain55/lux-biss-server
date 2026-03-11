@@ -10,12 +10,14 @@ import (
 	"github.com/parvej/luxbiss_server/internal/database"
 	"github.com/parvej/luxbiss_server/internal/logger"
 	"github.com/parvej/luxbiss_server/internal/middleware"
+	"github.com/parvej/luxbiss_server/internal/modules/admindashboard"
 	"github.com/parvej/luxbiss_server/internal/modules/auth"
 	"github.com/parvej/luxbiss_server/internal/modules/giftcard"
 	"github.com/parvej/luxbiss_server/internal/modules/health"
 	"github.com/parvej/luxbiss_server/internal/modules/manager"
 	"github.com/parvej/luxbiss_server/internal/modules/product"
 	"github.com/parvej/luxbiss_server/internal/modules/transaction"
+	"github.com/parvej/luxbiss_server/internal/modules/upload"
 	"github.com/parvej/luxbiss_server/internal/modules/user"
 	"github.com/parvej/luxbiss_server/internal/modules/wallet"
 	"github.com/parvej/luxbiss_server/internal/server"
@@ -80,6 +82,8 @@ func main() {
 		middleware.RateLimit(rdb, 100, 1*time.Minute), // Global limit
 	)
 
+	router.Static("/uploads", "./public/uploads")
+
 	api := router.Group("/api/v1")
 	registerRoutes(api, db, rdb, jwtManager, appLogger, cfg)
 
@@ -139,7 +143,7 @@ func registerRoutes(
 	manager.RegisterRoutes(api, managerHandler, jwtManager, rdb)
 
 	transactionRepo := transaction.NewGormRepository(db)
-	transactionService := transaction.NewService(transactionRepo, userService, appLogger)
+	transactionService := transaction.NewService(transactionRepo, userService, productService, appLogger)
 	transactionHandler := transaction.NewHandler(transactionService, appLogger)
 	transaction.RegisterRoutes(api, transactionHandler, jwtManager, rdb)
 
@@ -147,4 +151,11 @@ func registerRoutes(
 	giftcardService := giftcard.NewService(giftcardRepo, userService, transactionRepo, appLogger)
 	giftcardHandler := giftcard.NewHandler(giftcardService, appLogger)
 	giftcard.RegisterRoutes(api, giftcardHandler, jwtManager, rdb)
+
+	adminDashboardRepo := admindashboard.NewGormRepository(db)
+	adminDashboardService := admindashboard.NewService(adminDashboardRepo, appLogger)
+	adminDashboardHandler := admindashboard.NewHandler(adminDashboardService, appLogger)
+	admindashboard.RegisterRoutes(api, adminDashboardHandler, jwtManager, rdb)
+
+	upload.RegisterRoutes(api, jwtManager, rdb)
 }

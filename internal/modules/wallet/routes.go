@@ -23,6 +23,7 @@ func RegisterRoutes(
 		{
 			wallets.POST("", handler.Create)
 			wallets.PUT("/:id", handler.Update)
+			wallets.DELETE("/:id", handler.Delete)
 		}
 	}
 }

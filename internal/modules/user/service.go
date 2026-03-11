@@ -31,13 +31,11 @@ func (s *UserService) Create(ctx context.Context, req *CreateUserRequest) (*User
 	}
 
 	user := &User{
-		Name:             req.Name,
-		Email:            strings.ToLower(req.Email),
-		Password:         hashedPassword,
-		Role:             req.Role,
-		ProfilePhoto:     req.ProfilePhoto,
-		TelegramUsername: req.TelegramUsername,
-		TelegramLink:     req.TelegramLink,
+		Name:         req.Name,
+		Email:        strings.ToLower(req.Email),
+		Password:     hashedPassword,
+		Role:         req.Role,
+		ProfilePhoto: req.ProfilePhoto,
 	}
 
 	if err := s.repo.Create(ctx, user); err != nil {
@@ -84,17 +82,20 @@ func (s *UserService) Update(ctx context.Context, id string, req *UpdateUserRequ
 	if req.Role != nil {
 		user.Role = *req.Role
 	}
-	if req.IsActive != nil {
-		user.IsActive = *req.IsActive
+	if req.Status != nil {
+		user.Status = *req.Status
 	}
 	if req.ProfilePhoto != nil {
 		user.ProfilePhoto = *req.ProfilePhoto
 	}
-	if req.TelegramUsername != nil {
-		user.TelegramUsername = *req.TelegramUsername
+	if req.Balance != nil {
+		user.Balance = *req.Balance
 	}
-	if req.TelegramLink != nil {
-		user.TelegramLink = *req.TelegramLink
+	if req.HoldBalance != nil {
+		user.HoldBalance = *req.HoldBalance
+	}
+	if req.WithdrawableBalance != nil {
+		user.WithdrawableBalance = *req.WithdrawableBalance
 	}
 	if req.DateOfBirth != nil {
 		user.DateOfBirth = *req.DateOfBirth
@@ -123,6 +124,12 @@ func (s *UserService) Update(ctx context.Context, id string, req *UpdateUserRequ
 	if req.WithdrawalAddress != nil {
 		user.WithdrawalAddress = *req.WithdrawalAddress
 	}
+	if req.LevelID != nil {
+		user.LevelID = req.LevelID
+	}
+	if req.StepID != nil {
+		user.StepID = req.StepID
+	}
 
 	if err := s.repo.Update(ctx, user); err != nil {
 		s.log.Errorw("Failed to update user", "error", err, "user_id", id)
@@ -142,6 +149,24 @@ func (s *UserService) UpdateBalance(ctx context.Context, userID string, amount f
 	return nil
 }
 
+func (s *UserService) UpdateHoldBalance(ctx context.Context, userID string, amount float64) error {
+	if err := s.repo.UpdateHoldBalance(ctx, userID, amount); err != nil {
+		s.log.Errorw("Failed to update user hold balance", "error", err, "user_id", userID, "amount", amount)
+		return common.ErrInternal(err)
+	}
+	s.log.Infow("User hold balance updated successfully", "user_id", userID, "amount", amount)
+	return nil
+}
+
+func (s *UserService) UpdateWithdrawableBalance(ctx context.Context, userID string, amount float64) error {
+	if err := s.repo.UpdateWithdrawableBalance(ctx, userID, amount); err != nil {
+		s.log.Errorw("Failed to update user withdrawable balance", "error", err, "user_id", userID, "amount", amount)
+		return common.ErrInternal(err)
+	}
+	s.log.Infow("User withdrawable balance updated successfully", "user_id", userID, "amount", amount)
+	return nil
+}
+
 func (s *UserService) UpdatePassword(ctx context.Context, id string, hashedPassword string) error {
 	if err := s.repo.UpdatePassword(ctx, id, hashedPassword); err != nil {
 		s.log.Errorw("Failed to update user password", "error", err, "user_id", id)
@@ -149,6 +174,39 @@ func (s *UserService) UpdatePassword(ctx context.Context, id string, hashedPassw
 	}
 	s.log.Infow("User password updated successfully", "user_id", id)
 	return nil
+}
+
+func (s *UserService) ApproveHoldBalance(ctx context.Context, id string) (*User, error) {
+	user, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if user.HoldBalance <= 0 {
+		return nil, common.ErrBadRequest("User has no hold balance to approve")
+	}
+
+	amount := user.HoldBalance
+	user.Balance += amount
+	user.HoldBalance = 0
+
+	if err := s.repo.Update(ctx, user); err != nil {
+		s.log.Errorw("Failed to approve hold balance", "error", err, "user_id", id)
+		return nil, common.ErrInternal(err)
+	}
+
+	// Sync transactions
+	if err := s.CompletePendingTransactions(ctx, id); err != nil {
+		s.log.Errorw("Failed to sync transactions on hold balance approval", "error", err, "user_id", id)
+		// We don't return error here because the balance itself was already updated
+	}
+
+	s.log.Infow("User hold balance approved successfully", "user_id", id, "amount", amount)
+	return user, nil
+}
+
+func (s *UserService) CompletePendingTransactions(ctx context.Context, userID string) error {
+	return s.repo.CompletePendingTransactions(ctx, userID)
 }
 
 func (s *UserService) Delete(ctx context.Context, id string) error {

@@ -10,7 +10,7 @@ import (
 type UserSeeder struct{}
 
 func (s *UserSeeder) Seed(db *gorm.DB) error {
-	hashedPassword, _ := hash.HashPassword("Password123!")
+	hashedPassword, _ := hash.HashPassword("Parvej@55")
 
 	users := []user.User{
 		{
@@ -19,7 +19,7 @@ func (s *UserSeeder) Seed(db *gorm.DB) error {
 			Email:    "admin@luxbiss.com",
 			Password: hashedPassword,
 			Role:     user.RoleAdmin,
-			IsActive: true,
+			Status:   user.StatusActive,
 		},
 		{
 			ID:       uuid.New().String(),
@@ -27,7 +27,7 @@ func (s *UserSeeder) Seed(db *gorm.DB) error {
 			Email:    "user@luxbiss.com",
 			Password: hashedPassword,
 			Role:     user.RoleUser,
-			IsActive: true,
+			Status:   user.StatusActive,
 		},
 	}
 

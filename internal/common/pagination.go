@@ -20,7 +20,10 @@ const (
 
 func NewPagination(c *gin.Context) Pagination {
 	page := parseIntQuery(c, "page", defaultPage)
-	limit := parseIntQuery(c, "limit", defaultPerPage)
+	limit := parseIntQuery(c, "limit", 0)
+	if limit <= 0 {
+		limit = parseIntQuery(c, "per_page", defaultPerPage)
+	}
 
 	if page < 1 {
 		page = defaultPage

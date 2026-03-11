@@ -79,3 +79,26 @@ func (h *Handler) Update(c *gin.Context) {
 
 	common.OK(c, "Wallet updated successfully", ToResponse(wallet))
 }
+
+func (h *Handler) Delete(c *gin.Context) {
+	id := c.Param("id")
+	if _, err := uuid.Parse(id); err != nil {
+		common.BadRequest(c, "Invalid wallet ID", nil)
+		return
+	}
+
+	if err := h.service.Delete(c.Request.Context(), id); err != nil {
+		if appErr, ok := common.IsAppError(err); ok {
+			c.JSON(appErr.StatusCode, common.Response{
+				Success:   false,
+				Message:   appErr.Message,
+				RequestID: c.GetString("request_id"),
+			})
+			return
+		}
+		common.InternalError(c, "Failed to delete wallet")
+		return
+	}
+
+	common.NoContent(c)
+}

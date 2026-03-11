@@ -10,6 +10,7 @@ import (
 const (
 	TypeDeposit    = "deposit"
 	TypeWithdrawal = "withdraw"
+	TypeInvestment = "investment"
 
 	StatusPending   = "processing"
 	StatusCompleted = "completed"
@@ -41,12 +42,13 @@ type ReportItem struct {
 }
 
 type Summary struct {
-	AvailableBalance float64      `json:"available_balance"`
-	HoldBalance      float64      `json:"hold_balance"`
-	TotalDeposit     float64      `json:"total_deposit"`
-	TotalWithdrawal  float64      `json:"total_withdrawal"`
-	PeriodDays       int          `json:"period_days"`
-	WithdrawReport   []ReportItem `json:"withdraw_report"`
+	AvailableBalance    float64      `json:"available_balance"`
+	HoldBalance         float64      `json:"hold_balance"`
+	WithdrawableBalance float64      `json:"withdrawable_balance"`
+	TotalDeposit        float64      `json:"total_deposit"`
+	TotalWithdrawal     float64      `json:"total_withdrawal"`
+	PeriodDays          int          `json:"period_days"`
+	WithdrawReport      []ReportItem `json:"withdraw_report"`
 }
 
 type Repository interface {
@@ -65,4 +67,7 @@ type Service interface {
 	Update(ctx context.Context, id string, req *UpdateTransactionRequest, requestingRole string) (*Transaction, error)
 	Delete(ctx context.Context, id string, requestingRole string) error
 	GetSummary(ctx context.Context, userID string, days int) (*Summary, error)
+
+	// Investment
+	Invest(ctx context.Context, userID string, req *InvestRequest) error
 }

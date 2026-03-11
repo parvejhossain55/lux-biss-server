@@ -8,7 +8,7 @@ type CreateProductRequest struct {
 	Rating      float64 `json:"rating" binding:"omitempty,gte=0,lte=5"`
 	MinQuantity int     `json:"min_quantity" binding:"required,gt=0"`
 	MaxQuantity int     `json:"max_quantity" binding:"required,gt=0,gtefield=MinQuantity"`
-	ImageURL    string  `json:"image_url" binding:"omitempty,url"`
+	ImageURL    string  `json:"image_url" binding:"omitempty"`
 	Description string  `json:"description" binding:"omitempty"`
 }
 
@@ -20,8 +20,34 @@ type UpdateProductRequest struct {
 	Rating      *float64 `json:"rating" binding:"omitempty,gte=0,lte=5"`
 	MinQuantity *int     `json:"min_quantity" binding:"omitempty,gt=0"`
 	MaxQuantity *int     `json:"max_quantity" binding:"omitempty,gt=0,gtefield=MinQuantity"`
-	ImageURL    *string  `json:"image_url" binding:"omitempty,url"`
+	ImageURL    *string  `json:"image_url" binding:"omitempty"`
 	Description *string  `json:"description" binding:"omitempty"`
+}
+
+type CreateLevelRequest struct {
+	Name string `json:"name" binding:"required,min=1,max=50"`
+}
+
+type UpdateLevelRequest struct {
+	Name *string `json:"name" binding:"omitempty,min=1,max=50"`
+}
+
+type CreateStepRequest struct {
+	LevelID    uint   `json:"level_id" binding:"required,gt=0"`
+	StepNumber int    `json:"step_number" binding:"required"`
+	Name       string `json:"name" binding:"omitempty,max=50"`
+}
+
+type UpdateStepRequest struct {
+	LevelID    *uint   `json:"level_id" binding:"omitempty,gt=0"`
+	StepNumber *int    `json:"step_number" binding:"omitempty"`
+	Name       *string `json:"name" binding:"omitempty,max=50"`
+}
+
+type InvestRequest struct {
+	LevelID  uint `json:"level_id" binding:"required,gt=0"`
+	StepID   uint `json:"step_id" binding:"required,gt=0"`
+	Quantity int  `json:"quantity" binding:"required,gt=0"`
 }
 
 type ProductListResponse struct {

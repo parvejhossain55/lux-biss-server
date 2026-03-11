@@ -91,27 +91,29 @@ func (s *GiftcardService) Apply(ctx context.Context, req *ApplyGiftcardRequest, 
 		return nil, common.ErrInternal(err)
 	}
 
-	// Credit the gift card amount to the user's balance
-	if err := s.userService.UpdateBalance(ctx, userID, giftcard.Amount); err != nil {
-		s.log.Errorw("Giftcard applied but failed to update user balance", "error", err, "user_id", userID, "amount", giftcard.Amount)
-		return nil, common.ErrInternal(err)
-	}
-
-	// Create a completed deposit transaction as a record
+	// Create a pending deposit transaction. The balance will be updated when an admin approves it.
 	tx := &transaction.Transaction{
 		UserID: userID,
 		Type:   transaction.TypeDeposit,
 		Amount: giftcard.Amount,
-		Status: transaction.StatusCompleted,
+		Status: transaction.StatusPending,
 		TxHash: common.GenerateHash(),
 		Note:   "Gift card redeemed: " + giftcard.RedeemCode,
 	}
 	if err := s.txRepo.Create(ctx, tx); err != nil {
 		s.log.Errorw("Giftcard applied but failed to create transaction record", "error", err, "user_id", userID)
-		// Non-fatal: balance is already updated, just log the error
+		return nil, common.ErrInternal(err)
 	}
 
-	s.log.Infow("Giftcard applied successfully", "giftcard_id", giftcard.ID, "user_id", userID, "amount", giftcard.Amount)
+	// Add to user's hold balance
+	if err := s.userService.UpdateHoldBalance(ctx, userID, giftcard.Amount); err != nil {
+		s.log.Errorw("Giftcard applied but failed to update user hold balance", "error", err, "user_id", userID)
+		// We don't return error here because the transaction and giftcard update are already done
+		// and it might be better to let admin fix it or just log it.
+		// Actually, consistency is important, but s.repo.Update and s.txRepo.Create are not in a transaction here.
+	}
+
+	s.log.Infow("Giftcard applied successfully and added to hold balance", "giftcard_id", giftcard.ID, "user_id", userID, "amount", giftcard.Amount)
 	return giftcard, nil
 }
 

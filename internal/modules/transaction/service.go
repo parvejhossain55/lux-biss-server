@@ -2,20 +2,24 @@ package transaction
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/parvej/luxbiss_server/internal/common"
 	"github.com/parvej/luxbiss_server/internal/logger"
+	"github.com/parvej/luxbiss_server/internal/modules/product"
 	"github.com/parvej/luxbiss_server/internal/modules/user"
 )
 
 type TransactionService struct {
-	repo        Repository
-	userService user.Service
-	log         *logger.Logger
+	repo           Repository
+	productService product.Service
+	userService    user.Service
+	log            *logger.Logger
 }
 
-func NewService(repo Repository, userService user.Service, log *logger.Logger) *TransactionService {
-	return &TransactionService{repo: repo, userService: userService, log: log}
+func NewService(repo Repository, userService user.Service, productService product.Service, log *logger.Logger) *TransactionService {
+	return &TransactionService{repo: repo, userService: userService, productService: productService, log: log}
 }
 
 func (s *TransactionService) Create(ctx context.Context, req *CreateTransactionRequest, requestingUserID, requestingRole string) (*Transaction, error) {
@@ -43,7 +47,10 @@ func (s *TransactionService) Create(ctx context.Context, req *CreateTransactionR
 		if err != nil {
 			return nil, err
 		}
-		if u.Balance < tx.Amount {
+		if u.WithdrawalAddress == "" {
+			return nil, common.ErrBadRequest("Please set your withdrawal address in your profile before requesting a withdrawal")
+		}
+		if u.WithdrawableBalance < tx.Amount {
 			return nil, common.ErrBadRequest("Insufficient balance")
 		}
 	}
@@ -51,6 +58,21 @@ func (s *TransactionService) Create(ctx context.Context, req *CreateTransactionR
 	if err := s.repo.Create(ctx, tx); err != nil {
 		s.log.Errorw("Failed to create transaction", "error", err, "user_id", targetUserID)
 		return nil, common.ErrInternal(err)
+	}
+
+	// For deposits, add to hold balance until approved
+	if tx.Type == TypeDeposit {
+		if err := s.userService.UpdateHoldBalance(ctx, targetUserID, tx.Amount); err != nil {
+			s.log.Errorw("Failed to update user hold balance on deposit creation", "error", err, "user_id", targetUserID)
+		}
+	}
+	// For withdrawals, reserve withdrawable balance immediately
+	if tx.Type == TypeWithdrawal {
+		if err := s.userService.UpdateWithdrawableBalance(ctx, targetUserID, -tx.Amount); err != nil {
+			s.log.Errorw("Failed to reserve withdrawable balance on withdrawal creation", "error", err, "user_id", targetUserID, "tx_id", tx.ID)
+			_ = s.repo.Delete(ctx, tx.ID)
+			return nil, common.ErrInternal(err)
+		}
 	}
 
 	s.log.Infow("Transaction created successfully", "tx_id", tx.ID, "user_id", targetUserID)
@@ -100,14 +122,27 @@ func (s *TransactionService) Update(ctx context.Context, id string, req *UpdateT
 		tx.Status = newStatus
 
 		// If marked as completed, update user balance
-		if newStatus == StatusCompleted {
-			amountChange := tx.Amount
-			if tx.Type == TypeWithdrawal {
-				amountChange = -tx.Amount
+		if newStatus == StatusCompleted && oldStatus == StatusPending {
+			if tx.Type == TypeDeposit {
+				// Move from HoldBalance to main Balance
+				if err := s.userService.UpdateHoldBalance(ctx, tx.UserID, -tx.Amount); err != nil {
+					s.log.Errorw("Failed to update user hold balance", "error", err, "tx_id", id)
+				}
+				if err := s.userService.UpdateBalance(ctx, tx.UserID, tx.Amount); err != nil {
+					return nil, err
+				}
 			}
-
-			if err := s.userService.UpdateBalance(ctx, tx.UserID, amountChange); err != nil {
-				return nil, err
+		} else if (newStatus == StatusRejected || newStatus == StatusCancelled) && oldStatus == StatusPending {
+			if tx.Type == TypeDeposit {
+				// Remove from HoldBalance
+				if err := s.userService.UpdateHoldBalance(ctx, tx.UserID, -tx.Amount); err != nil {
+					s.log.Errorw("Failed to update user hold balance on rejection", "error", err, "tx_id", id)
+				}
+			} else if tx.Type == TypeWithdrawal {
+				// Release reserved withdrawable balance
+				if err := s.userService.UpdateWithdrawableBalance(ctx, tx.UserID, tx.Amount); err != nil {
+					s.log.Errorw("Failed to release withdrawable balance on rejection", "error", err, "tx_id", id)
+				}
 			}
 		}
 	}
@@ -141,4 +176,153 @@ func (s *TransactionService) Delete(ctx context.Context, id string, requestingRo
 
 func (s *TransactionService) GetSummary(ctx context.Context, userID string, days int) (*Summary, error) {
 	return s.repo.GetSummary(ctx, userID, days)
+}
+
+func (s *TransactionService) Invest(ctx context.Context, userID string, req *InvestRequest) error {
+	// 1. Get step products
+	products, _, err := s.productService.List(ctx, 100, 0, "", "", req.LevelID, req.StepID)
+	if err != nil {
+		return err
+	}
+	if len(products) == 0 {
+		return common.ErrNotFound("No products found for this step")
+	}
+
+	// 2. Calculate total cost
+	totalCost := 0.0
+	for _, p := range products {
+		minQty := p.MinQuantity
+		if minQty <= 0 {
+			minQty = 1
+		}
+		totalCost += p.Price * float64(minQty)
+	}
+	totalCost *= float64(req.Quantity)
+
+	// 3. Get user
+	u, err := s.userService.GetByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	// 4. Validate user current level/step and status
+	if u.Status == user.StatusCompleted {
+		return common.ErrBadRequest("You have already completed all levels. No further investments can be made.")
+	}
+
+	if u.LevelID == nil || *u.LevelID != req.LevelID || u.StepID == nil || *u.StepID != req.StepID {
+		return common.ErrBadRequest("You can only invest in your current level and step")
+	}
+
+	// 5. Check balance
+	if u.Balance < totalCost {
+		return common.ErrBadRequest("Insufficient balance")
+	}
+
+	// 6. Deduct balance and add to withdrawable balance
+	s.log.Infow("Processing investment balances", "user_id", userID, "total_cost", totalCost, "current_balance", u.Balance)
+	if err := s.userService.UpdateBalance(ctx, userID, -totalCost); err != nil {
+		return err
+	}
+	if err := s.userService.UpdateWithdrawableBalance(ctx, userID, totalCost); err != nil {
+		// Rollback balance deduction
+		s.userService.UpdateBalance(ctx, userID, totalCost)
+		return err
+	}
+
+	// 7. Create transaction record
+	tx := &Transaction{
+		ID:     uuid.New().String(),
+		UserID: userID,
+		Type:   TypeInvestment,
+		Amount: totalCost,
+		Status: StatusCompleted,
+		TxHash: common.GenerateHash(),
+		Note:   fmt.Sprintf("Investment in Level %d Step %d (x%d sets)", req.LevelID, req.StepID, req.Quantity),
+	}
+	if err := s.repo.Create(ctx, tx); err != nil {
+		// Rollback balances (manual)
+		s.userService.UpdateBalance(ctx, userID, totalCost)
+		s.userService.UpdateWithdrawableBalance(ctx, userID, -totalCost)
+		return common.ErrInternal(err)
+	}
+
+	s.log.Infow("Investment successful, updating progress", "user_id", userID)
+
+	// 8. Update user's progress to next step
+	// Fetch all steps in this level
+	steps, _, err := s.productService.ListStepsByLevel(ctx, req.LevelID, 100, 0)
+	if err != nil {
+		return nil // Investment successful, but progress tracking failed
+	}
+
+	var nextStepID uint
+	foundCurrent := false
+	for _, step := range steps {
+		if foundCurrent {
+			nextStepID = step.ID
+			break
+		}
+		if step.ID == req.StepID {
+			foundCurrent = true
+		}
+	}
+
+	if nextStepID != 0 {
+		// Move to next step
+		reqUpdate := &user.UpdateUserRequest{
+			StepID: &nextStepID,
+		}
+		s.log.Infow("Advancing user to next step", "user_id", userID, "next_step_id", nextStepID)
+		if _, err := s.userService.Update(ctx, userID, reqUpdate); err != nil {
+			s.log.Errorw("Failed to advance user to next step", "error", err, "user_id", userID)
+		}
+	} else {
+		// Move to next level
+		levels, _, err := s.productService.ListLevels(ctx, 100, 0)
+		if err == nil {
+			var nextLevelID uint
+			foundLvl := false
+			for _, lvl := range levels {
+				if foundLvl {
+					nextLevelID = lvl.ID
+					break
+				}
+				if lvl.ID == req.LevelID {
+					foundLvl = true
+				}
+			}
+
+			if nextLevelID != 0 {
+				// Get first step of next level
+				firstSteps, _, err := s.productService.ListStepsByLevel(ctx, nextLevelID, 1, 0)
+				var firstStepID *uint
+				if err == nil && len(firstSteps) > 0 {
+					id := firstSteps[0].ID
+					firstStepID = &id
+				}
+
+				reqUpdate := &user.UpdateUserRequest{
+					LevelID: &nextLevelID,
+					StepID:  firstStepID,
+				}
+				s.log.Infow("Advancing user to next level", "user_id", userID, "next_level_id", nextLevelID, "first_step_id", firstStepID)
+				if _, err := s.userService.Update(ctx, userID, reqUpdate); err != nil {
+					s.log.Errorw("Failed to advance user to next level", "error", err, "user_id", userID)
+				}
+			} else {
+				// NO MORE LEVELS - ABSOLUTE END
+				s.log.Infow("User completed all levels and steps", "user_id", userID)
+				status := user.StatusCompleted
+				reqUpdate := &user.UpdateUserRequest{
+					Status: &status,
+				}
+				if _, err := s.userService.Update(ctx, userID, reqUpdate); err != nil {
+					s.log.Errorw("Failed to set user status to completed", "error", err, "user_id", userID)
+				}
+			}
+		}
+	}
+
+	return nil
 }

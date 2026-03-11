@@ -3,17 +3,17 @@ package wallet
 type CreateWalletRequest struct {
 	CoinName      string `json:"coin_name" validate:"required,min=2,max=50"`
 	Network       string `json:"network" validate:"required,min=2,max=50"`
-	CoinLogoURL   string `json:"coin_logo_url" validate:"omitempty,url"`
+	CoinLogoURL   string `json:"coin_logo_url" validate:"required"`
 	WalletAddress string `json:"wallet_address" validate:"required,min=5,max=255"`
-	QrCodeURL     string `json:"qr_code_url" validate:"omitempty,url"`
+	QrCodeURL     string `json:"qr_code_url" validate:"required"`
 }
 
 type UpdateWalletRequest struct {
 	CoinName      *string `json:"coin_name" validate:"omitempty,min=2,max=50"`
 	Network       *string `json:"network" validate:"omitempty,min=2,max=50"`
-	CoinLogoURL   *string `json:"coin_logo_url" validate:"omitempty,url"`
+	CoinLogoURL   *string `json:"coin_logo_url" validate:"omitempty"`
 	WalletAddress *string `json:"wallet_address" validate:"omitempty,min=5,max=255"`
-	QrCodeURL     *string `json:"qr_code_url" validate:"omitempty,url"`
+	QrCodeURL     *string `json:"qr_code_url" validate:"omitempty"`
 }
 
 type WalletResponse struct {

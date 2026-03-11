@@ -73,3 +73,14 @@ func (r *GormRepository) Update(ctx context.Context, wallet *Wallet) error {
 
 	return nil
 }
+
+func (r *GormRepository) Delete(ctx context.Context, id string) error {
+	result := r.db.WithContext(ctx).Where("id = ?", id).Delete(&Wallet{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return common.ErrNotFound("Wallet")
+	}
+	return nil
+}

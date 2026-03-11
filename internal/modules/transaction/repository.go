@@ -127,7 +127,10 @@ func (r *GormRepository) GetSummary(ctx context.Context, userID string, days int
 	var totalDep, totalWith float64
 	r.db.WithContext(ctx).Model(&Transaction{}).Where(baseCond+" AND type = ?", append(baseArgs, TypeDeposit)...).Select("COALESCE(SUM(amount), 0)").Scan(&totalDep)
 	r.db.WithContext(ctx).Model(&Transaction{}).Where(baseCond+" AND type = ?", append(baseArgs, TypeWithdrawal)...).Select("COALESCE(SUM(amount), 0)").Scan(&totalWith)
-	availableBalance := totalDep - totalWith
+
+	var balance float64
+	r.db.WithContext(ctx).Table("users").Where("id = ?", userID).Select("balance").Scan(&balance)
+	availableBalance := balance
 
 	// Calculate Withdrawal Report (Daily for the requested period)
 	startDate := now.AddDate(0, 0, -days)
@@ -168,12 +171,16 @@ func (r *GormRepository) GetSummary(ctx context.Context, userID string, days int
 		Where("user_id = ? AND type = ? AND status = ?", userID, TypeDeposit, StatusPending).
 		Select("COALESCE(SUM(amount), 0)").Scan(&holdBalance)
 
+	var withdrawableBalance float64
+	r.db.WithContext(ctx).Table("users").Where("id = ?", userID).Select("withdrawable_balance").Scan(&withdrawableBalance)
+
 	return &Summary{
-		AvailableBalance: availableBalance,
-		HoldBalance:      holdBalance,
-		TotalDeposit:     totalDep,
-		TotalWithdrawal:  totalWith,
-		PeriodDays:       days,
-		WithdrawReport:   reportItems,
+		AvailableBalance:    availableBalance,
+		HoldBalance:         holdBalance,
+		WithdrawableBalance: withdrawableBalance,
+		TotalDeposit:        totalDep,
+		TotalWithdrawal:     totalWith,
+		PeriodDays:          days,
+		WithdrawReport:      reportItems,
 	}, nil
 }

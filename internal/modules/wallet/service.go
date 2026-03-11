@@ -68,3 +68,18 @@ func (s *WalletService) Update(ctx context.Context, id string, req *UpdateWallet
 	s.log.Infow("Wallet updated successfully", "wallet_id", id)
 	return wallet, nil
 }
+
+func (s *WalletService) Delete(ctx context.Context, id string) error {
+	if err := s.repo.Delete(ctx, id); err != nil {
+		s.log.Errorw("Failed to delete wallet", "error", err, "wallet_id", id)
+
+		if _, ok := common.IsAppError(err); ok {
+			return err
+		}
+
+		return common.ErrInternal(err)
+	}
+
+	s.log.Infow("Wallet deleted successfully", "wallet_id", id)
+	return nil
+}

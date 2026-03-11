@@ -176,3 +176,28 @@ func (h *Handler) GetSummary(c *gin.Context) {
 
 	common.OK(c, "Transaction summary computed", summary)
 }
+
+func (h *Handler) Invest(c *gin.Context) {
+	userID := c.GetString("user_id")
+
+	var req InvestRequest
+	if errs := common.ValidateRequest(c, &req); errs != nil {
+		common.BadRequest(c, "Validation failed", errs)
+		return
+	}
+
+	if err := h.service.Invest(c.Request.Context(), userID, &req); err != nil {
+		if appErr, ok := common.IsAppError(err); ok {
+			c.JSON(appErr.StatusCode, common.Response{
+				Success:   false,
+				Message:   appErr.Message,
+				RequestID: c.GetString("request_id"),
+			})
+			return
+		}
+		common.InternalError(c, err.Error())
+		return
+	}
+
+	common.OK(c, "Investment completed successfully", nil)
+}

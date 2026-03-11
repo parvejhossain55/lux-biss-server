@@ -28,10 +28,12 @@ type Repository interface {
 	GetByID(ctx context.Context, id string) (*Wallet, error)
 	List(ctx context.Context) ([]*Wallet, error)
 	Update(ctx context.Context, wallet *Wallet) error
+	Delete(ctx context.Context, id string) error
 }
 
 type Service interface {
 	Create(ctx context.Context, req *CreateWalletRequest) (*Wallet, error)
 	List(ctx context.Context) ([]*Wallet, error)
 	Update(ctx context.Context, id string, req *UpdateWalletRequest) (*Wallet, error)
+	Delete(ctx context.Context, id string) error
 }

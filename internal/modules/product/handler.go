@@ -166,17 +166,73 @@ func (h *Handler) Delete(c *gin.Context) {
 		return
 	}
 
-	common.NoContent(c)
+	common.OK(c, "Deleted successfully", nil)
 }
 
 func (h *Handler) ListLevels(c *gin.Context) {
-	levels, err := h.service.ListLevels(c.Request.Context())
+	pagination := common.NewPagination(c)
+	levels, total, err := h.service.ListLevels(c.Request.Context(), pagination.PerPage, pagination.Offset)
 	if err != nil {
 		common.InternalError(c, "Failed to list levels")
 		return
 	}
 
-	common.OK(c, "Levels retrieved successfully", ToLevelResponseList(levels))
+	common.OKWithMeta(c, "Levels retrieved successfully", ToLevelResponseList(levels), pagination.ToMeta(total))
+}
+
+func (h *Handler) CreateLevel(c *gin.Context) {
+	var req CreateLevelRequest
+	if errs := common.ValidateRequest(c, &req); errs != nil {
+		common.BadRequest(c, "Validation failed", errs)
+		return
+	}
+
+	level, err := h.service.CreateLevel(c.Request.Context(), &req)
+	if err != nil {
+		common.InternalError(c, "Failed to create level")
+		return
+	}
+
+	common.Created(c, "Level created successfully", level)
+}
+
+func (h *Handler) UpdateLevel(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		common.BadRequest(c, "Invalid level ID", nil)
+		return
+	}
+
+	var req UpdateLevelRequest
+	if errs := common.ValidateRequest(c, &req); errs != nil {
+		common.BadRequest(c, "Validation failed", errs)
+		return
+	}
+
+	level, err := h.service.UpdateLevel(c.Request.Context(), uint(id), &req)
+	if err != nil {
+		common.InternalError(c, "Failed to update level")
+		return
+	}
+
+	common.OK(c, "Level updated successfully", level)
+}
+
+func (h *Handler) DeleteLevel(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		common.BadRequest(c, "Invalid level ID", nil)
+		return
+	}
+
+	if err := h.service.DeleteLevel(c.Request.Context(), uint(id)); err != nil {
+		common.InternalError(c, "Failed to delete level")
+		return
+	}
+
+	common.OK(c, "Deleted successfully", nil)
 }
 
 func (h *Handler) ListStepsByLevel(c *gin.Context) {
@@ -187,11 +243,67 @@ func (h *Handler) ListStepsByLevel(c *gin.Context) {
 		return
 	}
 
-	steps, err := h.service.ListStepsByLevel(c.Request.Context(), uint(levelID))
+	pagination := common.NewPagination(c)
+	steps, total, err := h.service.ListStepsByLevel(c.Request.Context(), uint(levelID), pagination.PerPage, pagination.Offset)
 	if err != nil {
 		common.InternalError(c, "Failed to list steps")
 		return
 	}
 
-	common.OK(c, "Steps retrieved successfully", ToStepResponseList(steps))
+	common.OKWithMeta(c, "Steps retrieved successfully", ToStepResponseList(steps), pagination.ToMeta(total))
+}
+
+func (h *Handler) CreateStep(c *gin.Context) {
+	var req CreateStepRequest
+	if errs := common.ValidateRequest(c, &req); errs != nil {
+		common.BadRequest(c, "Validation failed", errs)
+		return
+	}
+
+	step, err := h.service.CreateStep(c.Request.Context(), &req)
+	if err != nil {
+		common.InternalError(c, "Failed to create step")
+		return
+	}
+
+	common.Created(c, "Step created successfully", step)
+}
+
+func (h *Handler) UpdateStep(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		common.BadRequest(c, "Invalid step ID", nil)
+		return
+	}
+
+	var req UpdateStepRequest
+	if errs := common.ValidateRequest(c, &req); errs != nil {
+		common.BadRequest(c, "Validation failed", errs)
+		return
+	}
+
+	step, err := h.service.UpdateStep(c.Request.Context(), uint(id), &req)
+	if err != nil {
+		common.InternalError(c, "Failed to update step")
+		return
+	}
+
+	common.OK(c, "Step updated successfully", step)
+}
+
+func (h *Handler) DeleteStep(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		common.BadRequest(c, "Invalid step ID", nil)
+		return
+	}
+
+	if err := h.service.DeleteStep(c.Request.Context(), uint(id)); err != nil {
+		common.InternalError(c, "Failed to delete step")
+		return
+	}
+
+	common.OK(c, "Deleted successfully", nil)
 }

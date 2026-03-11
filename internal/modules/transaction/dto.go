@@ -16,6 +16,12 @@ type UpdateTransactionRequest struct {
 	Note   string  `json:"note" validate:"omitempty,max=1000"`
 }
 
+type InvestRequest struct {
+	LevelID  uint `json:"level_id" validate:"required,gt=0"`
+	StepID   uint `json:"step_id" validate:"required,gt=0"`
+	Quantity int  `json:"quantity" validate:"required,gt=0"`
+}
+
 type TransactionResponse struct {
 	ID string `json:"id"`
 

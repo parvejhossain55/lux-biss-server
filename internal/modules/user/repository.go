@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/parvej/luxbiss_server/internal/common"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type GormRepository struct {
@@ -18,11 +19,36 @@ func NewGormRepository(db *gorm.DB) *GormRepository {
 }
 
 func (r *GormRepository) Create(ctx context.Context, user *User) error {
-	user.ID = uuid.New().String()
-	user.IsActive = true
+	// If a user with the same email was soft-deleted, hard-delete it to permit recreation/re-registration
+	if err := r.db.WithContext(ctx).Unscoped().Where("email = ? AND deleted_at IS NOT NULL", user.Email).Delete(&User{}).Error; err != nil {
+		return err
+	}
 
-	if user.Role == "" {
-		user.Role = RoleUser
+	user.ID = uuid.New().String()
+	user.Status = StatusActive
+
+	// if user.Role == "" {
+	user.Role = RoleUser
+	// }
+
+	// Assign a random manager to the new user
+	var managerID string
+	// 'RANDOM()' for PostgreSQL / SQLite.
+	err := r.db.WithContext(ctx).Table("managers").Select("id").Order("RANDOM()").Limit(1).Scan(&managerID).Error
+	if err == nil && managerID != "" {
+		user.ManagerID = &managerID
+	}
+
+	// Assign default level (lowest ID) and step (lowest step_number for that level)
+	var levelID uint
+	err = r.db.WithContext(ctx).Table("levels").Select("id").Order("id ASC").Limit(1).Scan(&levelID).Error
+	if err == nil && levelID != 0 {
+		user.LevelID = &levelID
+		var stepID uint
+		err = r.db.WithContext(ctx).Table("steps").Select("id").Where("level_id = ?", levelID).Order("step_number ASC").Limit(1).Scan(&stepID).Error
+		if err == nil && stepID != 0 {
+			user.StepID = &stepID
+		}
 	}
 
 	result := r.db.WithContext(ctx).Create(user)
@@ -35,7 +61,7 @@ func (r *GormRepository) Create(ctx context.Context, user *User) error {
 
 func (r *GormRepository) GetByID(ctx context.Context, id string) (*User, error) {
 	var user User
-	result := r.db.WithContext(ctx).Where("id = ?", id).First(&user)
+	result := r.db.WithContext(ctx).Preload("Manager").Preload("Level").Preload("Step").Where("id = ?", id).First(&user)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, common.ErrNotFound("User")
@@ -48,7 +74,7 @@ func (r *GormRepository) GetByID(ctx context.Context, id string) (*User, error) 
 
 func (r *GormRepository) GetByEmail(ctx context.Context, email string) (*User, error) {
 	var user User
-	result := r.db.WithContext(ctx).Where("email = ?", email).First(&user)
+	result := r.db.WithContext(ctx).Preload("Manager").Preload("Level").Preload("Step").Where("email = ?", email).First(&user)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, common.ErrNotFound("User")
@@ -67,6 +93,9 @@ func (r *GormRepository) List(ctx context.Context, limit, offset int) ([]*User, 
 
 	var users []*User
 	result := r.db.WithContext(ctx).
+		Preload("Manager").
+		Preload("Level").
+		Preload("Step").
 		Order("created_at DESC").
 		Limit(limit).
 		Offset(offset).
@@ -81,23 +110,27 @@ func (r *GormRepository) List(ctx context.Context, limit, offset int) ([]*User, 
 func (r *GormRepository) Update(ctx context.Context, user *User) error {
 	result := r.db.WithContext(ctx).
 		Model(user).
+		Omit(clause.Associations).
 		Updates(map[string]interface{}{
-			"name":               user.Name,
-			"email":              user.Email,
-			"role":               user.Role,
-			"is_active":          user.IsActive,
-			"profile_photo":      user.ProfilePhoto,
-			"telegram_username":  user.TelegramUsername,
-			"telegram_link":      user.TelegramLink,
-			"date_of_birth":      user.DateOfBirth,
-			"gender":             user.Gender,
-			"phone":              user.Phone,
-			"address":            user.Address,
-			"country":            user.Country,
-			"payment_method":     user.PaymentMethod,
-			"payment_currency":   user.PaymentCurrency,
-			"payment_network":    user.PaymentNetwork,
-			"withdrawal_address": user.WithdrawalAddress,
+			"name":                 user.Name,
+			"email":                user.Email,
+			"role":                 user.Role,
+			"status":               user.Status,
+			"profile_photo":        user.ProfilePhoto,
+			"date_of_birth":        user.DateOfBirth,
+			"gender":               user.Gender,
+			"phone":                user.Phone,
+			"address":              user.Address,
+			"country":              user.Country,
+			"payment_method":       user.PaymentMethod,
+			"payment_currency":     user.PaymentCurrency,
+			"payment_network":      user.PaymentNetwork,
+			"withdrawal_address":   user.WithdrawalAddress,
+			"balance":              user.Balance,
+			"hold_balance":         user.HoldBalance,
+			"withdrawable_balance": user.WithdrawableBalance,
+			"level_id":             user.LevelID,
+			"step_id":              user.StepID,
 		})
 	if result.Error != nil {
 		return result.Error
@@ -125,6 +158,36 @@ func (r *GormRepository) UpdateBalance(ctx context.Context, userID string, amoun
 	return nil
 }
 
+func (r *GormRepository) UpdateHoldBalance(ctx context.Context, userID string, amount float64) error {
+	result := r.db.WithContext(ctx).
+		Model(&User{}).
+		Where("id = ?", userID).
+		Update("hold_balance", gorm.Expr("hold_balance + ?", amount))
+
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return common.ErrNotFound("User")
+	}
+	return nil
+}
+
+func (r *GormRepository) UpdateWithdrawableBalance(ctx context.Context, userID string, amount float64) error {
+	result := r.db.WithContext(ctx).
+		Model(&User{}).
+		Where("id = ?", userID).
+		Update("withdrawable_balance", gorm.Expr("withdrawable_balance + ?", amount))
+
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return common.ErrNotFound("User")
+	}
+	return nil
+}
+
 func (r *GormRepository) UpdatePassword(ctx context.Context, id string, hashedPassword string) error {
 	result := r.db.WithContext(ctx).
 		Model(&User{}).
@@ -139,6 +202,16 @@ func (r *GormRepository) UpdatePassword(ctx context.Context, id string, hashedPa
 	}
 
 	return nil
+}
+
+func (r *GormRepository) CompletePendingTransactions(ctx context.Context, userID string) error {
+	// Execute raw SQL as transaction module is separate but we want to mark all its pending deposits as completed
+	// We only complete "deposit" types that are "processing"
+	result := r.db.WithContext(ctx).Exec(
+		"UPDATE transactions SET status = 'completed', updated_at = NOW() WHERE user_id = ? AND status = 'processing' AND type = 'deposit'",
+		userID,
+	)
+	return result.Error
 }
 
 func (r *GormRepository) Delete(ctx context.Context, id string) error {

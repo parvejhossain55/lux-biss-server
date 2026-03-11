@@ -101,10 +101,90 @@ func (s *ProductService) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (s *ProductService) ListLevels(ctx context.Context) ([]*Level, error) {
-	return s.repo.ListLevels(ctx)
+// Level operations
+func (s *ProductService) CreateLevel(ctx context.Context, req *CreateLevelRequest) (*Level, error) {
+	level := &Level{
+		Name: req.Name,
+	}
+	if err := s.repo.CreateLevel(ctx, level); err != nil {
+		s.log.Errorw("Failed to create level", "error", err, "name", req.Name)
+		return nil, common.ErrInternal(err)
+	}
+	s.log.Infow("Level created successfully", "level_id", level.ID, "name", level.Name)
+	return level, nil
 }
 
-func (s *ProductService) ListStepsByLevel(ctx context.Context, levelID uint) ([]*Step, error) {
-	return s.repo.ListStepsByLevel(ctx, levelID)
+func (s *ProductService) GetLevelByID(ctx context.Context, id uint) (*Level, error) {
+	return s.repo.GetLevelByID(ctx, id)
+}
+
+func (s *ProductService) ListLevels(ctx context.Context, limit, offset int) ([]*Level, int64, error) {
+	return s.repo.ListLevels(ctx, limit, offset)
+}
+
+func (s *ProductService) UpdateLevel(ctx context.Context, id uint, req *UpdateLevelRequest) (*Level, error) {
+	level, err := s.repo.GetLevelByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if req.Name != nil {
+		level.Name = *req.Name
+	}
+	if err := s.repo.UpdateLevel(ctx, level); err != nil {
+		s.log.Errorw("Failed to update level", "error", err, "level_id", id)
+		return nil, common.ErrInternal(err)
+	}
+	return level, nil
+}
+
+func (s *ProductService) DeleteLevel(ctx context.Context, id uint) error {
+	return s.repo.DeleteLevel(ctx, id)
+}
+
+// Step operations
+func (s *ProductService) CreateStep(ctx context.Context, req *CreateStepRequest) (*Step, error) {
+	step := &Step{
+		LevelID:    req.LevelID,
+		StepNumber: req.StepNumber,
+		Name:       req.Name,
+	}
+	if err := s.repo.CreateStep(ctx, step); err != nil {
+		s.log.Errorw("Failed to create step", "error", err, "level_id", req.LevelID)
+		return nil, common.ErrInternal(err)
+	}
+	s.log.Infow("Step created successfully", "step_id", step.ID, "level_id", step.LevelID)
+	return step, nil
+}
+
+func (s *ProductService) GetStepByID(ctx context.Context, id uint) (*Step, error) {
+	return s.repo.GetStepByID(ctx, id)
+}
+
+func (s *ProductService) ListStepsByLevel(ctx context.Context, levelID uint, limit, offset int) ([]*Step, int64, error) {
+	return s.repo.ListStepsByLevel(ctx, levelID, limit, offset)
+}
+
+func (s *ProductService) UpdateStep(ctx context.Context, id uint, req *UpdateStepRequest) (*Step, error) {
+	step, err := s.repo.GetStepByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if req.LevelID != nil {
+		step.LevelID = *req.LevelID
+	}
+	if req.StepNumber != nil {
+		step.StepNumber = *req.StepNumber
+	}
+	if req.Name != nil {
+		step.Name = *req.Name
+	}
+	if err := s.repo.UpdateStep(ctx, step); err != nil {
+		s.log.Errorw("Failed to update step", "error", err, "step_id", id)
+		return nil, common.ErrInternal(err)
+	}
+	return step, nil
+}
+
+func (s *ProductService) DeleteStep(ctx context.Context, id uint) error {
+	return s.repo.DeleteStep(ctx, id)
 }

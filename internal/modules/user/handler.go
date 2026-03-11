@@ -105,8 +105,8 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	if userRole != RoleAdmin && (req.Role != nil || req.IsActive != nil) {
-		common.Forbidden(c, "Only admins can update role or active status")
+	if userRole != RoleAdmin && (req.Role != nil || req.Status != nil) {
+		common.Forbidden(c, "Only admins can update role or status")
 		return
 	}
 
@@ -148,6 +148,30 @@ func (h *Handler) Delete(c *gin.Context) {
 	}
 
 	common.NoContent(c)
+}
+
+func (h *Handler) ApproveHoldBalance(c *gin.Context) {
+	id := c.Param("id")
+	if _, err := uuid.Parse(id); err != nil {
+		common.BadRequest(c, "Invalid user ID", nil)
+		return
+	}
+
+	user, err := h.service.ApproveHoldBalance(c.Request.Context(), id)
+	if err != nil {
+		if appErr, ok := common.IsAppError(err); ok {
+			c.JSON(appErr.StatusCode, common.Response{
+				Success:   false,
+				Message:   appErr.Message,
+				RequestID: c.GetString("request_id"),
+			})
+			return
+		}
+		common.InternalError(c, "Failed to approve hold balance")
+		return
+	}
+
+	common.OK(c, "Hold balance approved successfully", ToResponse(user))
 }
 
 func (h *Handler) GetMe(c *gin.Context) {

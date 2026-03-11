@@ -1,24 +1,43 @@
 package user
 
+type ManagerResponse struct {
+	ID               string `json:"id"`
+	Name             string `json:"name"`
+	TelegramUsername string `json:"telegram_username"`
+	TelegramLink     string `json:"telegram_link"`
+	ProfilePhoto     string `json:"profile_photo"`
+}
+
+type LevelResponse struct {
+	ID   uint   `json:"id"`
+	Name string `json:"name"`
+}
+
+type StepResponse struct {
+	ID         uint   `json:"id"`
+	LevelID    uint   `json:"level_id"`
+	StepNumber int    `json:"step_number"`
+	Name       string `json:"name"`
+}
+
 type CreateUserRequest struct {
-	Name             string `json:"name" validate:"required,min=2,max=100"`
-	Email            string `json:"email" validate:"required,email"`
-	Password         string `json:"password" validate:"required,min=8,max=128"`
-	Role             string `json:"role" validate:"omitempty,oneof=user admin"`
-	ProfilePhoto     string `json:"profile_photo" validate:"omitempty,url"`
-	TelegramUsername string `json:"telegram_username" validate:"omitempty"`
-	TelegramLink     string `json:"telegram_link" validate:"omitempty"`
+	Name         string `json:"name" validate:"required,min=2,max=100"`
+	Email        string `json:"email" validate:"required,email"`
+	Password     string `json:"password" validate:"required,min=8,max=128"`
+	Role         string `json:"role" validate:"omitempty,oneof=user admin"`
+	ProfilePhoto string `json:"profile_photo" validate:"omitempty"`
 }
 
 type UpdateUserRequest struct {
 	// Basic
-	Name             string  `json:"name" validate:"omitempty,min=2,max=100"`
-	Email            string  `json:"email" validate:"omitempty,email"`
-	Role             *string `json:"role" validate:"omitempty,oneof=user admin"`
-	IsActive         *bool   `json:"is_active" validate:"omitempty"`
-	ProfilePhoto     *string `json:"profile_photo" validate:"omitempty,url"`
-	TelegramUsername *string `json:"telegram_username" validate:"omitempty"`
-	TelegramLink     *string `json:"telegram_link" validate:"omitempty"`
+	Name                string   `json:"name" validate:"omitempty,min=2,max=100"`
+	Email               string   `json:"email" validate:"omitempty,email"`
+	Role                *string  `json:"role" validate:"omitempty,oneof=user admin"`
+	Status              *string  `json:"status" validate:"omitempty,oneof=active ignored suspend completed"`
+	ProfilePhoto        *string  `json:"profile_photo" validate:"omitempty"`
+	Balance             *float64 `json:"balance" validate:"omitempty"`
+	HoldBalance         *float64 `json:"hold_balance" validate:"omitempty"`
+	WithdrawableBalance *float64 `json:"withdrawable_balance" validate:"omitempty"`
 	// Personal Information
 	DateOfBirth *string `json:"date_of_birth" validate:"omitempty"`
 	Gender      *string `json:"gender" validate:"omitempty,oneof=Male Female Other"`
@@ -30,18 +49,26 @@ type UpdateUserRequest struct {
 	PaymentCurrency   *string `json:"payment_currency" validate:"omitempty,max=50"`
 	PaymentNetwork    *string `json:"payment_network" validate:"omitempty,max=100"`
 	WithdrawalAddress *string `json:"withdrawal_address" validate:"omitempty,max=255"`
+	LevelID           *uint   `json:"level_id" validate:"omitempty"`
+	StepID            *uint   `json:"step_id" validate:"omitempty"`
 }
 
 type UserResponse struct {
-	ID               string  `json:"id"`
-	Name             string  `json:"name"`
-	Email            string  `json:"email"`
-	Role             string  `json:"role"`
-	IsActive         bool    `json:"is_active"`
-	ProfilePhoto     string  `json:"profile_photo"`
-	TelegramUsername string  `json:"telegram_username"`
-	TelegramLink     string  `json:"telegram_link"`
-	Balance          float64 `json:"balance"`
+	ID                  string           `json:"id"`
+	Name                string           `json:"name"`
+	Email               string           `json:"email"`
+	Role                string           `json:"role"`
+	Status              string           `json:"status"`
+	ProfilePhoto        string           `json:"profile_photo"`
+	Balance             float64          `json:"balance"`
+	HoldBalance         float64          `json:"hold_balance"`
+	WithdrawableBalance float64          `json:"withdrawable_balance"`
+	ManagerID           *string          `json:"manager_id"`
+	Manager             *ManagerResponse `json:"manager,omitempty"`
+	LevelID             *uint            `json:"level_id"`
+	Level               *LevelResponse   `json:"level,omitempty"`
+	StepID              *uint            `json:"step_id"`
+	Step                *StepResponse    `json:"step,omitempty"`
 	// Personal Information
 	DateOfBirth string `json:"date_of_birth"`
 	Gender      string `json:"gender"`
@@ -58,27 +85,62 @@ type UserResponse struct {
 }
 
 func ToResponse(u *User) *UserResponse {
+	var managerResponse *ManagerResponse
+	if u.Manager != nil {
+		managerResponse = &ManagerResponse{
+			ID:               u.Manager.ID,
+			Name:             u.Manager.Name,
+			TelegramUsername: u.Manager.TelegramUsername,
+			TelegramLink:     u.Manager.TelegramLink,
+			ProfilePhoto:     u.Manager.ProfilePhoto,
+		}
+	}
+
+	var levelResponse *LevelResponse
+	if u.Level != nil {
+		levelResponse = &LevelResponse{
+			ID:   u.Level.ID,
+			Name: u.Level.Name,
+		}
+	}
+
+	var stepResponse *StepResponse
+	if u.Step != nil {
+		stepResponse = &StepResponse{
+			ID:         u.Step.ID,
+			LevelID:    u.Step.LevelID,
+			StepNumber: u.Step.StepNumber,
+			Name:       u.Step.Name,
+		}
+	}
+
 	return &UserResponse{
-		ID:                u.ID,
-		Name:              u.Name,
-		Email:             u.Email,
-		Role:              u.Role,
-		IsActive:          u.IsActive,
-		ProfilePhoto:      u.ProfilePhoto,
-		TelegramUsername:  u.TelegramUsername,
-		TelegramLink:      u.TelegramLink,
-		Balance:           u.Balance,
-		DateOfBirth:       u.DateOfBirth,
-		Gender:            u.Gender,
-		Phone:             u.Phone,
-		Address:           u.Address,
-		Country:           u.Country,
-		PaymentMethod:     u.PaymentMethod,
-		PaymentCurrency:   u.PaymentCurrency,
-		PaymentNetwork:    u.PaymentNetwork,
-		WithdrawalAddress: u.WithdrawalAddress,
-		CreatedAt:         u.CreatedAt.Format("2006-01-02T15:04:05Z"),
-		UpdatedAt:         u.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		ID:                  u.ID,
+		Name:                u.Name,
+		Email:               u.Email,
+		Role:                u.Role,
+		Status:              u.Status,
+		ProfilePhoto:        u.ProfilePhoto,
+		Balance:             u.Balance,
+		HoldBalance:         u.HoldBalance,
+		WithdrawableBalance: u.WithdrawableBalance,
+		ManagerID:           u.ManagerID,
+		Manager:             managerResponse,
+		LevelID:             u.LevelID,
+		Level:               levelResponse,
+		StepID:              u.StepID,
+		Step:                stepResponse,
+		DateOfBirth:         u.DateOfBirth,
+		Gender:              u.Gender,
+		Phone:               u.Phone,
+		Address:             u.Address,
+		Country:             u.Country,
+		PaymentMethod:       u.PaymentMethod,
+		PaymentCurrency:     u.PaymentCurrency,
+		PaymentNetwork:      u.PaymentNetwork,
+		WithdrawalAddress:   u.WithdrawalAddress,
+		CreatedAt:           u.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		UpdatedAt:           u.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 }
 

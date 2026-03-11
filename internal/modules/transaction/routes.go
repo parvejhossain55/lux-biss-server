@@ -21,6 +21,7 @@ func RegisterRoutes(
 		transactions.GET("", handler.List)
 		transactions.GET("/summary", handler.GetSummary)
 		transactions.GET("/:id", handler.GetByID)
+		transactions.POST("/invest", handler.Invest)
 
 		// Admin only: modify status and delete
 		adminTxs := transactions.Group("")
