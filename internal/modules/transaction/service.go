@@ -205,13 +205,11 @@ func (s *TransactionService) Invest(ctx context.Context, userID string, req *Inv
 		return err
 	}
 
-	// 4. Validate user current level/step and status
-	if u.Status == user.StatusCompleted {
-		return common.ErrBadRequest("You have already completed all levels. No further investments can be made.")
-	}
-
 	if u.LevelID == nil || *u.LevelID != req.LevelID || u.StepID == nil || *u.StepID != req.StepID {
 		return common.ErrBadRequest("You can only invest in your current level and step")
+	}
+	if u.CurrentStepCompleted {
+		return common.ErrBadRequest("You have already completed the investment for this step. Please wait for the next step to be unlocked.")
 	}
 
 	// 5. Check balance
@@ -270,8 +268,10 @@ func (s *TransactionService) Invest(ctx context.Context, userID string, req *Inv
 
 	if nextStepID != 0 {
 		// Move to next step
+		completed := false
 		reqUpdate := &user.UpdateUserRequest{
-			StepID: &nextStepID,
+			StepID:               &nextStepID,
+			CurrentStepCompleted: &completed,
 		}
 		s.log.Infow("Advancing user to next step", "user_id", userID, "next_step_id", nextStepID)
 		if _, err := s.userService.Update(ctx, userID, reqUpdate); err != nil {
@@ -302,9 +302,11 @@ func (s *TransactionService) Invest(ctx context.Context, userID string, req *Inv
 					firstStepID = &id
 				}
 
+				completed := false
 				reqUpdate := &user.UpdateUserRequest{
-					LevelID: &nextLevelID,
-					StepID:  firstStepID,
+					LevelID:              &nextLevelID,
+					StepID:               firstStepID,
+					CurrentStepCompleted: &completed,
 				}
 				s.log.Infow("Advancing user to next level", "user_id", userID, "next_level_id", nextLevelID, "first_step_id", firstStepID)
 				if _, err := s.userService.Update(ctx, userID, reqUpdate); err != nil {
@@ -312,13 +314,13 @@ func (s *TransactionService) Invest(ctx context.Context, userID string, req *Inv
 				}
 			} else {
 				// NO MORE LEVELS - ABSOLUTE END
-				s.log.Infow("User completed all levels and steps", "user_id", userID)
-				status := user.StatusCompleted
+				s.log.Infow("User completed all levels and steps - marking current step as completed", "user_id", userID)
+				completed := true
 				reqUpdate := &user.UpdateUserRequest{
-					Status: &status,
+					CurrentStepCompleted: &completed,
 				}
 				if _, err := s.userService.Update(ctx, userID, reqUpdate); err != nil {
-					s.log.Errorw("Failed to set user status to completed", "error", err, "user_id", userID)
+					s.log.Errorw("Failed to mark user step as completed", "error", err, "user_id", userID)
 				}
 			}
 		}

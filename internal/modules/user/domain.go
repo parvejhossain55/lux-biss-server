@@ -13,10 +13,9 @@ const (
 	RoleUser  = "user"
 	RoleAdmin = "admin"
 
-	StatusActive    = "active"
-	StatusIgnored   = "ignored"
-	StatusSuspend   = "suspend"
-	StatusCompleted = "completed"
+	StatusActive  = "active"
+	StatusIgnored = "ignored"
+	StatusSuspend = "suspend"
 )
 
 type User struct {
@@ -34,10 +33,11 @@ type User struct {
 	ManagerID *string          `json:"manager_id" gorm:"type:varchar(36);index"`
 	Manager   *manager.Manager `json:"manager,omitempty" gorm:"foreignKey:ManagerID"`
 	// Level and Step explicitly
-	LevelID *uint          `json:"level_id" gorm:"index"`
-	Level   *product.Level `json:"level,omitempty" gorm:"foreignKey:LevelID"`
-	StepID  *uint          `json:"step_id" gorm:"index"`
-	Step    *product.Step  `json:"step,omitempty" gorm:"foreignKey:StepID"`
+	LevelID              *uint          `json:"level_id" gorm:"index"`
+	Level                *product.Level `json:"level,omitempty" gorm:"foreignKey:LevelID"`
+	StepID               *uint          `json:"step_id" gorm:"index"`
+	Step                 *product.Step  `json:"step,omitempty" gorm:"foreignKey:StepID"`
+	CurrentStepCompleted bool           `json:"current_step_completed" gorm:"not null;default:false"`
 	// Personal Information
 	DateOfBirth string `json:"date_of_birth" gorm:"type:varchar(20)"`
 	Gender      string `json:"gender" gorm:"type:varchar(20)"`
@@ -70,6 +70,7 @@ type Repository interface {
 	UpdatePassword(ctx context.Context, id string, hashedPassword string) error
 	CompletePendingTransactions(ctx context.Context, userID string) error
 	Delete(ctx context.Context, id string) error
+	AdvanceUsersToNextStep(ctx context.Context, levelID, currentStepID, nextLevelID, nextStepID uint) error
 }
 
 type Service interface {
@@ -85,4 +86,5 @@ type Service interface {
 	ApproveHoldBalance(ctx context.Context, id string) (*User, error)
 	CompletePendingTransactions(ctx context.Context, userID string) error
 	Delete(ctx context.Context, id string) error
+	AdvanceUsersToNextStep(ctx context.Context, levelID, currentStepID, nextLevelID, nextStepID uint) error
 }

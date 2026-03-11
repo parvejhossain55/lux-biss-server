@@ -24,3 +24,14 @@ func (h *Handler) GetStats(c *gin.Context) {
 
 	common.OK(c, "Admin dashboard stats retrieved successfully", stats)
 }
+
+func (h *Handler) GetRecentActivity(c *gin.Context) {
+	limit := 10 // default limit
+	activities, err := h.service.GetRecentActivity(c.Request.Context(), limit)
+	if err != nil {
+		common.InternalError(c, "Failed to retrieve recent activity")
+		return
+	}
+
+	common.OK(c, "Recent activity retrieved successfully", activities)
+}

@@ -197,3 +197,24 @@ func (h *Handler) GetMe(c *gin.Context) {
 
 	common.OK(c, "User retrieved successfully", ToResponse(user))
 }
+
+func (h *Handler) AdvanceUsersToNextStep(c *gin.Context) {
+	var req struct {
+		LevelID       uint `json:"level_id" validate:"required"`
+		CurrentStepID uint `json:"current_step_id" validate:"required"`
+		NextLevelID   uint `json:"next_level_id" validate:"required"`
+		NextStepID    uint `json:"next_step_id" validate:"required"`
+	}
+
+	if errs := common.ValidateRequest(c, &req); errs != nil {
+		common.BadRequest(c, "Validation failed", errs)
+		return
+	}
+
+	if err := h.service.AdvanceUsersToNextStep(c.Request.Context(), req.LevelID, req.CurrentStepID, req.NextLevelID, req.NextStepID); err != nil {
+		common.InternalError(c, "Failed to advance users")
+		return
+	}
+
+	common.OK(c, "Users advanced successfully", nil)
+}

@@ -17,5 +17,6 @@ func RegisterRoutes(
 	admin.Use(middleware.Auth(jwtManager, rdb), middleware.RequireRole("admin"))
 	{
 		admin.GET("/stats", handler.GetStats)
+		admin.GET("/recent-activity", handler.GetRecentActivity)
 	}
 }

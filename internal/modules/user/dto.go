@@ -33,7 +33,7 @@ type UpdateUserRequest struct {
 	Name                string   `json:"name" validate:"omitempty,min=2,max=100"`
 	Email               string   `json:"email" validate:"omitempty,email"`
 	Role                *string  `json:"role" validate:"omitempty,oneof=user admin"`
-	Status              *string  `json:"status" validate:"omitempty,oneof=active ignored suspend completed"`
+	Status              *string  `json:"status" validate:"omitempty,oneof=active ignored suspend"`
 	ProfilePhoto        *string  `json:"profile_photo" validate:"omitempty"`
 	Balance             *float64 `json:"balance" validate:"omitempty"`
 	HoldBalance         *float64 `json:"hold_balance" validate:"omitempty"`
@@ -45,30 +45,32 @@ type UpdateUserRequest struct {
 	Address     *string `json:"address" validate:"omitempty,max=500"`
 	Country     *string `json:"country" validate:"omitempty,max=100"`
 	// Payment Wallet Information
-	PaymentMethod     *string `json:"payment_method" validate:"omitempty,max=100"`
-	PaymentCurrency   *string `json:"payment_currency" validate:"omitempty,max=50"`
-	PaymentNetwork    *string `json:"payment_network" validate:"omitempty,max=100"`
-	WithdrawalAddress *string `json:"withdrawal_address" validate:"omitempty,max=255"`
-	LevelID           *uint   `json:"level_id" validate:"omitempty"`
-	StepID            *uint   `json:"step_id" validate:"omitempty"`
+	PaymentMethod        *string `json:"payment_method" validate:"omitempty,max=100"`
+	PaymentCurrency      *string `json:"payment_currency" validate:"omitempty,max=50"`
+	PaymentNetwork       *string `json:"payment_network" validate:"omitempty,max=100"`
+	WithdrawalAddress    *string `json:"withdrawal_address" validate:"omitempty,max=255"`
+	LevelID              *uint   `json:"level_id" validate:"omitempty"`
+	StepID               *uint   `json:"step_id" validate:"omitempty"`
+	CurrentStepCompleted *bool   `json:"current_step_completed" validate:"omitempty"`
 }
 
 type UserResponse struct {
-	ID                  string           `json:"id"`
-	Name                string           `json:"name"`
-	Email               string           `json:"email"`
-	Role                string           `json:"role"`
-	Status              string           `json:"status"`
-	ProfilePhoto        string           `json:"profile_photo"`
-	Balance             float64          `json:"balance"`
-	HoldBalance         float64          `json:"hold_balance"`
-	WithdrawableBalance float64          `json:"withdrawable_balance"`
-	ManagerID           *string          `json:"manager_id"`
-	Manager             *ManagerResponse `json:"manager,omitempty"`
-	LevelID             *uint            `json:"level_id"`
-	Level               *LevelResponse   `json:"level,omitempty"`
-	StepID              *uint            `json:"step_id"`
-	Step                *StepResponse    `json:"step,omitempty"`
+	ID                   string           `json:"id"`
+	Name                 string           `json:"name"`
+	Email                string           `json:"email"`
+	Role                 string           `json:"role"`
+	Status               string           `json:"status"`
+	ProfilePhoto         string           `json:"profile_photo"`
+	Balance              float64          `json:"balance"`
+	HoldBalance          float64          `json:"hold_balance"`
+	WithdrawableBalance  float64          `json:"withdrawable_balance"`
+	ManagerID            *string          `json:"manager_id"`
+	Manager              *ManagerResponse `json:"manager,omitempty"`
+	LevelID              *uint            `json:"level_id"`
+	Level                *LevelResponse   `json:"level,omitempty"`
+	StepID               *uint            `json:"step_id"`
+	Step                 *StepResponse    `json:"step,omitempty"`
+	CurrentStepCompleted bool             `json:"current_step_completed"`
 	// Personal Information
 	DateOfBirth string `json:"date_of_birth"`
 	Gender      string `json:"gender"`
@@ -115,32 +117,33 @@ func ToResponse(u *User) *UserResponse {
 	}
 
 	return &UserResponse{
-		ID:                  u.ID,
-		Name:                u.Name,
-		Email:               u.Email,
-		Role:                u.Role,
-		Status:              u.Status,
-		ProfilePhoto:        u.ProfilePhoto,
-		Balance:             u.Balance,
-		HoldBalance:         u.HoldBalance,
-		WithdrawableBalance: u.WithdrawableBalance,
-		ManagerID:           u.ManagerID,
-		Manager:             managerResponse,
-		LevelID:             u.LevelID,
-		Level:               levelResponse,
-		StepID:              u.StepID,
-		Step:                stepResponse,
-		DateOfBirth:         u.DateOfBirth,
-		Gender:              u.Gender,
-		Phone:               u.Phone,
-		Address:             u.Address,
-		Country:             u.Country,
-		PaymentMethod:       u.PaymentMethod,
-		PaymentCurrency:     u.PaymentCurrency,
-		PaymentNetwork:      u.PaymentNetwork,
-		WithdrawalAddress:   u.WithdrawalAddress,
-		CreatedAt:           u.CreatedAt.Format("2006-01-02T15:04:05Z"),
-		UpdatedAt:           u.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		ID:                   u.ID,
+		Name:                 u.Name,
+		Email:                u.Email,
+		Role:                 u.Role,
+		Status:               u.Status,
+		ProfilePhoto:         u.ProfilePhoto,
+		Balance:              u.Balance,
+		HoldBalance:          u.HoldBalance,
+		WithdrawableBalance:  u.WithdrawableBalance,
+		ManagerID:            u.ManagerID,
+		Manager:              managerResponse,
+		LevelID:              u.LevelID,
+		Level:                levelResponse,
+		StepID:               u.StepID,
+		Step:                 stepResponse,
+		CurrentStepCompleted: u.CurrentStepCompleted,
+		DateOfBirth:          u.DateOfBirth,
+		Gender:               u.Gender,
+		Phone:                u.Phone,
+		Address:              u.Address,
+		Country:              u.Country,
+		PaymentMethod:        u.PaymentMethod,
+		PaymentCurrency:      u.PaymentCurrency,
+		PaymentNetwork:       u.PaymentNetwork,
+		WithdrawalAddress:    u.WithdrawalAddress,
+		CreatedAt:            u.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		UpdatedAt:            u.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 }
 

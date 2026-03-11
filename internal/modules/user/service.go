@@ -130,6 +130,9 @@ func (s *UserService) Update(ctx context.Context, id string, req *UpdateUserRequ
 	if req.StepID != nil {
 		user.StepID = req.StepID
 	}
+	if req.CurrentStepCompleted != nil {
+		user.CurrentStepCompleted = *req.CurrentStepCompleted
+	}
 
 	if err := s.repo.Update(ctx, user); err != nil {
 		s.log.Errorw("Failed to update user", "error", err, "user_id", id)
@@ -214,5 +217,14 @@ func (s *UserService) Delete(ctx context.Context, id string) error {
 		return err
 	}
 	s.log.Infow("User deleted successfully", "user_id", id)
+	return nil
+}
+
+func (s *UserService) AdvanceUsersToNextStep(ctx context.Context, levelID, currentStepID, nextLevelID, nextStepID uint) error {
+	if err := s.repo.AdvanceUsersToNextStep(ctx, levelID, currentStepID, nextLevelID, nextStepID); err != nil {
+		s.log.Errorw("Failed to advance users to next step", "error", err, "level_id", levelID, "current_step_id", currentStepID, "next_step_id", nextStepID, "next_level_id", nextLevelID)
+		return common.ErrInternal(err)
+	}
+	s.log.Infow("Advanced users to next step", "level_id", levelID, "current_step_id", currentStepID, "next_step_id", nextStepID, "next_level_id", nextLevelID)
 	return nil
 }

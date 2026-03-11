@@ -112,25 +112,26 @@ func (r *GormRepository) Update(ctx context.Context, user *User) error {
 		Model(user).
 		Omit(clause.Associations).
 		Updates(map[string]interface{}{
-			"name":                 user.Name,
-			"email":                user.Email,
-			"role":                 user.Role,
-			"status":               user.Status,
-			"profile_photo":        user.ProfilePhoto,
-			"date_of_birth":        user.DateOfBirth,
-			"gender":               user.Gender,
-			"phone":                user.Phone,
-			"address":              user.Address,
-			"country":              user.Country,
-			"payment_method":       user.PaymentMethod,
-			"payment_currency":     user.PaymentCurrency,
-			"payment_network":      user.PaymentNetwork,
-			"withdrawal_address":   user.WithdrawalAddress,
-			"balance":              user.Balance,
-			"hold_balance":         user.HoldBalance,
-			"withdrawable_balance": user.WithdrawableBalance,
-			"level_id":             user.LevelID,
-			"step_id":              user.StepID,
+			"name":                   user.Name,
+			"email":                  user.Email,
+			"role":                   user.Role,
+			"status":                 user.Status,
+			"profile_photo":          user.ProfilePhoto,
+			"date_of_birth":          user.DateOfBirth,
+			"gender":                 user.Gender,
+			"phone":                  user.Phone,
+			"address":                user.Address,
+			"country":                user.Country,
+			"payment_method":         user.PaymentMethod,
+			"payment_currency":       user.PaymentCurrency,
+			"payment_network":        user.PaymentNetwork,
+			"withdrawal_address":     user.WithdrawalAddress,
+			"balance":                user.Balance,
+			"hold_balance":           user.HoldBalance,
+			"withdrawable_balance":   user.WithdrawableBalance,
+			"level_id":               user.LevelID,
+			"step_id":                user.StepID,
+			"current_step_completed": user.CurrentStepCompleted,
 		})
 	if result.Error != nil {
 		return result.Error
@@ -225,4 +226,17 @@ func (r *GormRepository) Delete(ctx context.Context, id string) error {
 	}
 
 	return nil
+}
+
+func (r *GormRepository) AdvanceUsersToNextStep(ctx context.Context, levelID, currentStepID, nextLevelID, nextStepID uint) error {
+	result := r.db.WithContext(ctx).
+		Model(&User{}).
+		Where("level_id = ? AND step_id = ?", levelID, currentStepID).
+		Updates(map[string]interface{}{
+			"level_id":               nextLevelID,
+			"step_id":                nextStepID,
+			"current_step_completed": false,
+		}).Error
+
+	return result
 }
