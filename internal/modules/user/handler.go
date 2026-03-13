@@ -73,9 +73,10 @@ func (h *Handler) GetByID(c *gin.Context) {
 }
 
 func (h *Handler) List(c *gin.Context) {
+	status := c.Query("status")
 	pagination := common.NewPagination(c)
 
-	users, total, err := h.service.List(c.Request.Context(), pagination.PerPage, pagination.Offset)
+	users, total, err := h.service.List(c.Request.Context(), status, pagination.PerPage, pagination.Offset)
 	if err != nil {
 		common.InternalError(c, "Failed to list users")
 		return

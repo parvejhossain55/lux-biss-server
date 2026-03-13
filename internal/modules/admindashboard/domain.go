@@ -7,6 +7,7 @@ import (
 
 type Metric struct {
 	Total       int64   `json:"total"`
+	TotalAmount float64 `json:"total_amount,omitempty"`
 	TodayCount  int64   `json:"today_count"`
 	TodayAmount float64 `json:"today_amount,omitempty"`
 }

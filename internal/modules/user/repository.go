@@ -85,14 +85,19 @@ func (r *GormRepository) GetByEmail(ctx context.Context, email string) (*User, e
 	return &user, nil
 }
 
-func (r *GormRepository) List(ctx context.Context, limit, offset int) ([]*User, int64, error) {
+func (r *GormRepository) List(ctx context.Context, status string, limit, offset int) ([]*User, int64, error) {
 	var total int64
-	if err := r.db.WithContext(ctx).Model(&User{}).Count(&total).Error; err != nil {
+	query := r.db.WithContext(ctx).Model(&User{})
+	if status != "" {
+		query = query.Where("status = ?", status)
+	}
+
+	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
 	var users []*User
-	result := r.db.WithContext(ctx).
+	result := query.
 		Preload("Manager").
 		Preload("Level").
 		Preload("Step").

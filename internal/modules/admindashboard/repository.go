@@ -22,13 +22,15 @@ func (r *GormRepository) GetStats(ctx context.Context) (*StatsResponse, error) {
 	todayStart := time.Now().UTC().Truncate(24 * time.Hour)
 	tomorrowStart := todayStart.Add(24 * time.Hour)
 
-	if err := r.db.WithContext(ctx).Table("users").Where("role = ?", user.RoleUser).Count(&stats.Users.Total).Error; err != nil {
+	// Total (Active + Suspended) users excluding Ignored
+	if err := r.db.WithContext(ctx).Table("users").Where("role = ? AND status != ?", user.RoleUser, user.StatusIgnored).Count(&stats.Users.Total).Error; err != nil {
 		return nil, err
 	}
-	if err := r.db.WithContext(ctx).Table("users").Where("role = ? AND created_at >= ? AND created_at < ?", user.RoleUser, todayStart, tomorrowStart).Count(&stats.Users.TodayCount).Error; err != nil {
+	if err := r.db.WithContext(ctx).Table("users").Where("role = ? AND status != ? AND created_at >= ? AND created_at < ?", user.RoleUser, user.StatusIgnored, todayStart, tomorrowStart).Count(&stats.Users.TodayCount).Error; err != nil {
 		return nil, err
 	}
 
+	// Specifically count Ignored users
 	if err := r.db.WithContext(ctx).Table("users").Where("role = ? AND status = ?", user.RoleUser, user.StatusIgnored).Count(&stats.IgnoredUsers.Total).Error; err != nil {
 		return nil, err
 	}
@@ -36,34 +38,63 @@ func (r *GormRepository) GetStats(ctx context.Context) (*StatsResponse, error) {
 		return nil, err
 	}
 
-	if err := r.db.WithContext(ctx).Table("transactions").Where("type = ?", transaction.TypeDeposit).Count(&stats.Deposits.Total).Error; err != nil {
+	// Deposits count (exclude ignored user deposits)
+	if err := r.db.WithContext(ctx).Table("transactions").
+		Joins("JOIN users ON users.id = transactions.user_id").
+		Where("transactions.type = ? AND users.status != ?", transaction.TypeDeposit, user.StatusIgnored).
+		Count(&stats.Deposits.Total).Error; err != nil {
 		return nil, err
 	}
-	if err := r.db.WithContext(ctx).Table("transactions").Where("type = ? AND created_at >= ? AND created_at < ?", transaction.TypeDeposit, todayStart, tomorrowStart).Count(&stats.Deposits.TodayCount).Error; err != nil {
+	if err := r.db.WithContext(ctx).Table("transactions").
+		Joins("JOIN users ON users.id = transactions.user_id").
+		Where("transactions.type = ? AND transactions.status = ? AND users.status != ?", transaction.TypeDeposit, transaction.StatusCompleted, user.StatusIgnored).
+		Select("COALESCE(SUM(transactions.amount), 0)").Scan(&stats.Deposits.TotalAmount).Error; err != nil {
 		return nil, err
 	}
-	if err := r.db.WithContext(ctx).Table("transactions").Where("type = ? AND created_at >= ? AND created_at < ?", transaction.TypeDeposit, todayStart, tomorrowStart).Select("COALESCE(SUM(amount), 0)").Scan(&stats.Deposits.TodayAmount).Error; err != nil {
+	if err := r.db.WithContext(ctx).Table("transactions").
+		Joins("JOIN users ON users.id = transactions.user_id").
+		Where("transactions.type = ? AND users.status != ? AND transactions.created_at >= ? AND transactions.created_at < ?", transaction.TypeDeposit, user.StatusIgnored, todayStart, tomorrowStart).
+		Count(&stats.Deposits.TodayCount).Error; err != nil {
+		return nil, err
+	}
+	if err := r.db.WithContext(ctx).Table("transactions").
+		Joins("JOIN users ON users.id = transactions.user_id").
+		Where("transactions.type = ? AND users.status != ? AND transactions.created_at >= ? AND transactions.created_at < ?", transaction.TypeDeposit, user.StatusIgnored, todayStart, tomorrowStart).
+		Select("COALESCE(SUM(transactions.amount), 0)").Scan(&stats.Deposits.TodayAmount).Error; err != nil {
 		return nil, err
 	}
 
+	// Withdrawals count (exclude ignored user withdrawals)
 	if err := r.db.WithContext(ctx).Table("transactions").
-		Where("type = ? AND status NOT IN ?", transaction.TypeWithdrawal, []string{transaction.StatusRejected, transaction.StatusCancelled}).
+		Joins("JOIN users ON users.id = transactions.user_id").
+		Where("transactions.type = ? AND transactions.status NOT IN ? AND users.status != ?", transaction.TypeWithdrawal, []string{transaction.StatusRejected, transaction.StatusCancelled}, user.StatusIgnored).
 		Count(&stats.Withdrawals.Total).Error; err != nil {
 		return nil, err
 	}
 	if err := r.db.WithContext(ctx).Table("transactions").
-		Where("type = ? AND status NOT IN ? AND created_at >= ? AND created_at < ?", transaction.TypeWithdrawal, []string{transaction.StatusRejected, transaction.StatusCancelled}, todayStart, tomorrowStart).
+		Joins("JOIN users ON users.id = transactions.user_id").
+		Where("transactions.type = ? AND transactions.status = ? AND users.status != ?", transaction.TypeWithdrawal, transaction.StatusCompleted, user.StatusIgnored).
+		Select("COALESCE(SUM(transactions.amount), 0)").Scan(&stats.Withdrawals.TotalAmount).Error; err != nil {
+		return nil, err
+	}
+	if err := r.db.WithContext(ctx).Table("transactions").
+		Joins("JOIN users ON users.id = transactions.user_id").
+		Where("transactions.type = ? AND transactions.status NOT IN ? AND transactions.created_at >= ? AND transactions.created_at < ? AND users.status != ?", transaction.TypeWithdrawal, []string{transaction.StatusRejected, transaction.StatusCancelled}, todayStart, tomorrowStart, user.StatusIgnored).
 		Count(&stats.Withdrawals.TodayCount).Error; err != nil {
 		return nil, err
 	}
 	if err := r.db.WithContext(ctx).Table("transactions").
-		Where("type = ? AND status NOT IN ? AND created_at >= ? AND created_at < ?", transaction.TypeWithdrawal, []string{transaction.StatusRejected, transaction.StatusCancelled}, todayStart, tomorrowStart).
-		Select("COALESCE(SUM(amount), 0)").
+		Joins("JOIN users ON users.id = transactions.user_id").
+		Where("transactions.type = ? AND transactions.status NOT IN ? AND transactions.created_at >= ? AND transactions.created_at < ? AND users.status != ?", transaction.TypeWithdrawal, []string{transaction.StatusRejected, transaction.StatusCancelled}, todayStart, tomorrowStart, user.StatusIgnored).
+		Select("COALESCE(SUM(transactions.amount), 0)").
 		Scan(&stats.Withdrawals.TodayAmount).Error; err != nil {
 		return nil, err
 	}
 
 	if err := r.db.WithContext(ctx).Table("giftcards").Count(&stats.GiftCards.Total).Error; err != nil {
+		return nil, err
+	}
+	if err := r.db.WithContext(ctx).Table("giftcards").Select("COALESCE(SUM(amount), 0)").Scan(&stats.GiftCards.TotalAmount).Error; err != nil {
 		return nil, err
 	}
 	if err := r.db.WithContext(ctx).Table("giftcards").Where("created_at >= ? AND created_at < ?", todayStart, tomorrowStart).Count(&stats.GiftCards.TodayCount).Error; err != nil {
@@ -115,14 +146,14 @@ func (r *GormRepository) GetRecentActivity(ctx context.Context, limit int) ([]*A
 		return s
 	}
 
-	// Fetch recent users
+	// Fetch recent users (excluding ignored)
 	var recentUsers []struct {
 		Email     string
 		Status    string
 		Country   string
 		CreatedAt time.Time
 	}
-	if err := r.db.WithContext(ctx).Table("users").Where("role = ?", user.RoleUser).Order("created_at desc").Limit(limit).Find(&recentUsers).Error; err == nil {
+	if err := r.db.WithContext(ctx).Table("users").Where("role = ? AND status != ?", user.RoleUser, user.StatusIgnored).Order("created_at desc").Limit(limit).Find(&recentUsers).Error; err == nil {
 		for _, u := range recentUsers {
 			activities = append(activities, &ActivityResponse{
 				Action:     "Registration",
@@ -138,7 +169,7 @@ func (r *GormRepository) GetRecentActivity(ctx context.Context, limit int) ([]*A
 		}
 	}
 
-	// Fetch recent transactions (with user info joined)
+	// Fetch recent transactions (excluding ignored user transactions)
 	var recentTxs []struct {
 		Type      string
 		Amount    float64
@@ -151,7 +182,8 @@ func (r *GormRepository) GetRecentActivity(ctx context.Context, limit int) ([]*A
 	}
 	if err := r.db.WithContext(ctx).Table("transactions").
 		Select("transactions.type, transactions.amount, transactions.id, transactions.created_at, transactions.status as tx_status, users.email, users.country, users.status as usr_status").
-		Joins("left join users on users.id = transactions.user_id").
+		Joins("JOIN users on users.id = transactions.user_id").
+		Where("users.status != ?", user.StatusIgnored).
 		Order("transactions.created_at desc").Limit(limit).Find(&recentTxs).Error; err == nil {
 		for _, tx := range recentTxs {
 			amt := tx.Amount
@@ -170,7 +202,7 @@ func (r *GormRepository) GetRecentActivity(ctx context.Context, limit int) ([]*A
 		}
 	}
 
-	// Fetch recent giftcards (with user info joined)
+	// Fetch recent giftcards (excluding ignored user activities)
 	var recentGiftCards []struct {
 		Amount    float64
 		Code      string
@@ -182,7 +214,8 @@ func (r *GormRepository) GetRecentActivity(ctx context.Context, limit int) ([]*A
 	}
 	if err := r.db.WithContext(ctx).Table("giftcards").
 		Select("giftcards.amount, giftcards.code, giftcards.created_at, giftcards.status as tx_status, users.email, users.country, users.status as usr_status").
-		Joins("left join users on users.id = giftcards.user_id").
+		Joins("JOIN users on users.id = giftcards.user_id").
+		Where("users.status != ?", user.StatusIgnored).
 		Order("giftcards.created_at desc").Limit(limit).Find(&recentGiftCards).Error; err == nil {
 		for _, gc := range recentGiftCards {
 			amt := gc.Amount

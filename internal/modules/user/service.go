@@ -63,8 +63,8 @@ func (s *UserService) GetByEmail(ctx context.Context, email string) (*User, erro
 	return user, nil
 }
 
-func (s *UserService) List(ctx context.Context, limit, offset int) ([]*User, int64, error) {
-	return s.repo.List(ctx, limit, offset)
+func (s *UserService) List(ctx context.Context, status string, limit, offset int) ([]*User, int64, error) {
+	return s.repo.List(ctx, status, limit, offset)
 }
 
 func (s *UserService) Update(ctx context.Context, id string, req *UpdateUserRequest) (*User, error) {

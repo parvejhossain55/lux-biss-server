@@ -22,7 +22,7 @@ type Transaction struct {
 	ID string `json:"id" gorm:"type:varchar(36);primaryKey"`
 
 	UserID    string         `json:"user_id" gorm:"type:varchar(36);not null;index"`
-	Type      string         `json:"type" gorm:"type:varchar(20);not null;index"` // deposit | withdraw
+	Type      string         `json:"type" gorm:"type:varchar(20);not null;index"`
 	Amount    float64        `json:"amount" gorm:"type:decimal(15,2);not null"`
 	Status    string         `json:"status" gorm:"type:varchar(20);not null;default:'processing';index"`
 	TxHash    string         `json:"tx_hash" gorm:"type:varchar(255)"`

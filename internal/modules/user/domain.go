@@ -62,7 +62,7 @@ type Repository interface {
 	Create(ctx context.Context, user *User) error
 	GetByID(ctx context.Context, id string) (*User, error)
 	GetByEmail(ctx context.Context, email string) (*User, error)
-	List(ctx context.Context, limit, offset int) ([]*User, int64, error)
+	List(ctx context.Context, status string, limit, offset int) ([]*User, int64, error)
 	Update(ctx context.Context, user *User) error
 	UpdateBalance(ctx context.Context, userID string, amount float64) error
 	UpdateHoldBalance(ctx context.Context, userID string, amount float64) error
@@ -77,7 +77,7 @@ type Service interface {
 	Create(ctx context.Context, req *CreateUserRequest) (*User, error)
 	GetByID(ctx context.Context, id string) (*User, error)
 	GetByEmail(ctx context.Context, email string) (*User, error)
-	List(ctx context.Context, limit, offset int) ([]*User, int64, error)
+	List(ctx context.Context, status string, limit, offset int) ([]*User, int64, error)
 	Update(ctx context.Context, id string, req *UpdateUserRequest) (*User, error)
 	UpdateBalance(ctx context.Context, userID string, amount float64) error
 	UpdateHoldBalance(ctx context.Context, userID string, amount float64) error
