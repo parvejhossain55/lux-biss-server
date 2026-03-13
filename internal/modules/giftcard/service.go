@@ -46,6 +46,13 @@ func (s *GiftcardService) Create(ctx context.Context, req *CreateGiftcardRequest
 		Status:     StatusAvailable,
 	}
 
+	if req.ExpiredAt != "" {
+		t, err := time.Parse("2006-01-02T15:04:05Z", req.ExpiredAt)
+		if err == nil {
+			giftcard.ExpiredAt = &t
+		}
+	}
+
 	if err := s.repo.Create(ctx, giftcard); err != nil {
 		s.log.Errorw("Failed to create giftcard", "error", err, "code", code)
 		return nil, common.ErrInternal(err)
@@ -79,6 +86,10 @@ func (s *GiftcardService) Apply(ctx context.Context, req *ApplyGiftcardRequest, 
 		return nil, common.ErrBadRequest("Giftcard has already been used")
 	}
 
+	if giftcard.ExpiredAt != nil && giftcard.ExpiredAt.Before(time.Now()) {
+		return nil, common.ErrBadRequest("Giftcard has expired")
+	}
+
 	now := time.Now()
 
 	giftcard.Status = StatusUsed
@@ -108,9 +119,6 @@ func (s *GiftcardService) Apply(ctx context.Context, req *ApplyGiftcardRequest, 
 	// Add to user's hold balance
 	if err := s.userService.UpdateHoldBalance(ctx, userID, giftcard.Amount); err != nil {
 		s.log.Errorw("Giftcard applied but failed to update user hold balance", "error", err, "user_id", userID)
-		// We don't return error here because the transaction and giftcard update are already done
-		// and it might be better to let admin fix it or just log it.
-		// Actually, consistency is important, but s.repo.Update and s.txRepo.Create are not in a transaction here.
 	}
 
 	s.log.Infow("Giftcard applied successfully and added to hold balance", "giftcard_id", giftcard.ID, "user_id", userID, "amount", giftcard.Amount)
@@ -126,6 +134,10 @@ func (s *GiftcardService) Verify(ctx context.Context, req *VerifyGiftcardRequest
 
 	if giftcard.Status != StatusAvailable {
 		return nil, common.ErrBadRequest("Giftcard has already been used")
+	}
+
+	if giftcard.ExpiredAt != nil && giftcard.ExpiredAt.Before(time.Now()) {
+		return nil, common.ErrBadRequest("Giftcard has expired")
 	}
 
 	return giftcard, nil

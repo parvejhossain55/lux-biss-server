@@ -20,6 +20,7 @@ type Giftcard struct {
 	UserID     *string        `json:"user_id" gorm:"type:varchar(36);index"`
 	UserEmail  string         `json:"user_email" gorm:"type:varchar(255)"`
 	UsedAt     *time.Time     `json:"used_at"`
+	ExpiredAt  *time.Time     `json:"expired_at"`
 	CreatedAt  time.Time      `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt  time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
 	DeletedAt  gorm.DeletedAt `json:"-" gorm:"index"`

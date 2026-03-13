@@ -3,6 +3,7 @@ package giftcard
 type CreateGiftcardRequest struct {
 	RedeemCode string  `json:"redeem_code" validate:"omitempty,min=4,max=50"`
 	Amount     float64 `json:"amount" validate:"required,gt=0"`
+	ExpiredAt  string  `json:"expired_at" validate:"omitempty,datetime=2006-01-02T15:04:05Z"`
 }
 
 type ApplyGiftcardRequest struct {
@@ -20,6 +21,7 @@ type GiftcardResponse struct {
 	Status     string  `json:"status"`
 	UserEmail  string  `json:"user_email,omitempty"`
 	UsedAt     string  `json:"used_at,omitempty"`
+	ExpiredAt  string  `json:"expired_at,omitempty"`
 	CreatedAt  string  `json:"created_at"`
 	UpdatedAt  string  `json:"updated_at"`
 }
@@ -30,6 +32,11 @@ func ToResponse(g *Giftcard) *GiftcardResponse {
 		usedAt = g.UsedAt.Format("2006-01-02T15:04:05Z")
 	}
 
+	expiredAt := ""
+	if g.ExpiredAt != nil {
+		expiredAt = g.ExpiredAt.Format("2006-01-02T15:04:05Z")
+	}
+
 	return &GiftcardResponse{
 		ID:         g.ID,
 		RedeemCode: g.RedeemCode,
@@ -37,6 +44,7 @@ func ToResponse(g *Giftcard) *GiftcardResponse {
 		Status:     g.Status,
 		UserEmail:  g.UserEmail,
 		UsedAt:     usedAt,
+		ExpiredAt:  expiredAt,
 		CreatedAt:  g.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		UpdatedAt:  g.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
