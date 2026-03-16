@@ -2,6 +2,7 @@ package product
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/parvej/luxbiss_server/internal/common"
 	"github.com/parvej/luxbiss_server/internal/logger"
@@ -110,7 +111,21 @@ func (s *ProductService) CreateLevel(ctx context.Context, req *CreateLevelReques
 		s.log.Errorw("Failed to create level", "error", err, "name", req.Name)
 		return nil, common.ErrInternal(err)
 	}
-	s.log.Infow("Level created successfully", "level_id", level.ID, "name", level.Name)
+
+	// Automatically create 20 steps for the new level
+	for i := 1; i <= 20; i++ {
+		step := &Step{
+			LevelID:    level.ID,
+			StepNumber: i,
+			Name:       fmt.Sprintf("Step %d", i),
+		}
+		if err := s.repo.CreateStep(ctx, step); err != nil {
+			s.log.Errorw("Failed to create auto step", "error", err, "level_id", level.ID, "step_number", i)
+			// We continue even if one step fails, or you could rollback if using transactions
+		}
+	}
+
+	s.log.Infow("Level created successfully with 20 steps", "level_id", level.ID, "name", level.Name)
 	return level, nil
 }
 

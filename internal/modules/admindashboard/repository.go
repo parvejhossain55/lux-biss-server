@@ -2,6 +2,8 @@ package admindashboard
 
 import (
 	"context"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/parvej/luxbiss_server/internal/modules/transaction"
@@ -115,7 +117,7 @@ func (r *GormRepository) GetRecentActivity(ctx context.Context, limit int) ([]*A
 		if len(s) == 0 {
 			return s
 		}
-		// Special hack to format user statuses
+		s = strings.ToLower(s) // Normalization
 		if s == "processing" {
 			return "Pending"
 		}
@@ -134,6 +136,9 @@ func (r *GormRepository) GetRecentActivity(ctx context.Context, limit int) ([]*A
 		if s == "suspend" {
 			return "Suspended"
 		}
+		if s == "hold" {
+			return "Hold"
+		}
 		if s == "ignored" {
 			return "Ignored"
 		}
@@ -142,6 +147,13 @@ func (r *GormRepository) GetRecentActivity(ctx context.Context, limit int) ([]*A
 		}
 		if s == "withdraw" {
 			return "Withdraw"
+		}
+		if s == "investment" {
+			return "Investment"
+		}
+		// Fallback: capitalize first letter
+		if len(s) > 0 {
+			return string(s[0]-32) + s[1:]
 		}
 		return s
 	}
@@ -153,13 +165,13 @@ func (r *GormRepository) GetRecentActivity(ctx context.Context, limit int) ([]*A
 		Country   string
 		CreatedAt time.Time
 	}
-	if err := r.db.WithContext(ctx).Table("users").Where("role = ? AND status != ?", user.RoleUser, user.StatusIgnored).Order("created_at desc").Limit(limit).Find(&recentUsers).Error; err == nil {
+	if err := r.db.WithContext(ctx).Table("users").Where("role = ?", user.RoleUser).Order("created_at desc").Limit(limit).Find(&recentUsers).Error; err == nil {
 		for _, u := range recentUsers {
 			activities = append(activities, &ActivityResponse{
 				Action:     "Registration",
 				Amount:     nil,
 				Invoice:    "",
-				Date:       u.CreatedAt.Format("01.02 03:04 PM"),
+				Date:       u.CreatedAt.Format(time.RFC3339),
 				UserStatus: capitalize(u.Status),
 				Email:      u.Email,
 				Country:    u.Country,
@@ -173,7 +185,7 @@ func (r *GormRepository) GetRecentActivity(ctx context.Context, limit int) ([]*A
 	var recentTxs []struct {
 		Type      string
 		Amount    float64
-		ID        string
+		TxHash    string
 		CreatedAt time.Time
 		TxStatus  string
 		Email     string
@@ -181,9 +193,9 @@ func (r *GormRepository) GetRecentActivity(ctx context.Context, limit int) ([]*A
 		UsrStatus string
 	}
 	if err := r.db.WithContext(ctx).Table("transactions").
-		Select("transactions.type, transactions.amount, transactions.id, transactions.created_at, transactions.status as tx_status, users.email, users.country, users.status as usr_status").
+		Select("transactions.type, transactions.amount, transactions.tx_hash, transactions.created_at, transactions.status as tx_status, users.email, users.country, users.status as usr_status").
 		Joins("JOIN users on users.id = transactions.user_id").
-		Where("users.status != ?", user.StatusIgnored).
+		Where("users.role = ?", user.RoleUser).
 		Order("transactions.created_at desc").Limit(limit).Find(&recentTxs).Error; err == nil {
 		for _, tx := range recentTxs {
 			amt := tx.Amount
@@ -191,8 +203,8 @@ func (r *GormRepository) GetRecentActivity(ctx context.Context, limit int) ([]*A
 			activities = append(activities, &ActivityResponse{
 				Action:     actionType,
 				Amount:     &amt,
-				Invoice:    tx.ID,
-				Date:       tx.CreatedAt.Format("01.02 03:04 PM"),
+				Invoice:    tx.TxHash,
+				Date:       tx.CreatedAt.Format(time.RFC3339),
 				UserStatus: capitalize(tx.UsrStatus),
 				Email:      tx.Email,
 				Country:    tx.Country,
@@ -202,47 +214,10 @@ func (r *GormRepository) GetRecentActivity(ctx context.Context, limit int) ([]*A
 		}
 	}
 
-	// Fetch recent giftcards (excluding ignored user activities)
-	var recentGiftCards []struct {
-		Amount    float64
-		Code      string
-		CreatedAt time.Time
-		TxStatus  string
-		Email     string
-		Country   string
-		UsrStatus string
-	}
-	if err := r.db.WithContext(ctx).Table("giftcards").
-		Select("giftcards.amount, giftcards.code, giftcards.created_at, giftcards.status as tx_status, users.email, users.country, users.status as usr_status").
-		Joins("JOIN users on users.id = giftcards.user_id").
-		Where("users.status != ?", user.StatusIgnored).
-		Order("giftcards.created_at desc").Limit(limit).Find(&recentGiftCards).Error; err == nil {
-		for _, gc := range recentGiftCards {
-			amt := gc.Amount
-			activities = append(activities, &ActivityResponse{
-				Action:     "Gift Card",
-				Amount:     &amt,
-				Invoice:    gc.Code,
-				Date:       gc.CreatedAt.Format("01.02 03:04 PM"),
-				UserStatus: capitalize(gc.UsrStatus),
-				Email:      gc.Email,
-				Country:    gc.Country,
-				Status:     capitalize(gc.TxStatus),
-				CreatedAt:  gc.CreatedAt,
-			})
-		}
-	}
-
-	// Sort manually by CreatedAt desc
-	for i := 0; i < len(activities)-1; i++ {
-		for j := i + 1; j < len(activities); j++ {
-			if activities[j].CreatedAt.After(activities[i].CreatedAt) {
-				temp := activities[i]
-				activities[i] = activities[j]
-				activities[j] = temp
-			}
-		}
-	}
+	// Sort by CreatedAt desc
+	sort.Slice(activities, func(i, j int) bool {
+		return activities[i].CreatedAt.After(activities[j].CreatedAt)
+	})
 
 	// Return up to limit
 	if len(activities) > limit {

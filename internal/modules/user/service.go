@@ -124,11 +124,14 @@ func (s *UserService) Update(ctx context.Context, id string, req *UpdateUserRequ
 	if req.WithdrawalAddress != nil {
 		user.WithdrawalAddress = *req.WithdrawalAddress
 	}
-	if req.LevelID != nil {
-		user.LevelID = req.LevelID
-	}
-	if req.StepID != nil {
-		user.StepID = req.StepID
+	if req.LevelID != nil || req.StepID != nil {
+		if req.LevelID != nil {
+			user.LevelID = req.LevelID
+		}
+		if req.StepID != nil {
+			user.StepID = req.StepID
+		}
+		user.CurrentStepCompleted = false
 	}
 	if req.CurrentStepCompleted != nil {
 		user.CurrentStepCompleted = *req.CurrentStepCompleted

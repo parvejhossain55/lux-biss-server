@@ -206,7 +206,7 @@ func (s *Service) GoogleLogin(ctx context.Context, req *GoogleOAuthRequest) (*Au
 func isLoginAllowed(status string) bool {
 	// Users who completed all levels should still be able to log in.
 	// Only suspended users are blocked. Active and Ignored users are allowed.
-	return status == user.StatusActive || status == user.StatusIgnored
+	return status == user.StatusActive || status == user.StatusIgnored || status == user.StatusHold
 }
 
 func (s *Service) ForgotPassword(ctx context.Context, req *ForgotPasswordRequest) error {

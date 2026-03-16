@@ -4,7 +4,6 @@ type ManagerResponse struct {
 	ID               string `json:"id"`
 	Name             string `json:"name"`
 	TelegramUsername string `json:"telegram_username"`
-	TelegramLink     string `json:"telegram_link"`
 	ProfilePhoto     string `json:"profile_photo"`
 }
 
@@ -33,7 +32,7 @@ type UpdateUserRequest struct {
 	Name                string   `json:"name" validate:"omitempty,min=2,max=100"`
 	Email               string   `json:"email" validate:"omitempty,email"`
 	Role                *string  `json:"role" validate:"omitempty,oneof=user admin"`
-	Status              *string  `json:"status" validate:"omitempty,oneof=active ignored suspend"`
+	Status              *string  `json:"status" validate:"omitempty,oneof=active ignored suspend hold"`
 	ProfilePhoto        *string  `json:"profile_photo" validate:"omitempty"`
 	Balance             *float64 `json:"balance" validate:"omitempty"`
 	HoldBalance         *float64 `json:"hold_balance" validate:"omitempty"`
@@ -93,7 +92,6 @@ func ToResponse(u *User) *UserResponse {
 			ID:               u.Manager.ID,
 			Name:             u.Manager.Name,
 			TelegramUsername: u.Manager.TelegramUsername,
-			TelegramLink:     u.Manager.TelegramLink,
 			ProfilePhoto:     u.Manager.ProfilePhoto,
 		}
 	}

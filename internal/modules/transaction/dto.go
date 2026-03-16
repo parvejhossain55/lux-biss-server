@@ -1,11 +1,13 @@
 package transaction
 
 type CreateTransactionRequest struct {
-	UserID string  `json:"user_id" validate:"omitempty,uuid4"`
-	Type   string  `json:"type" validate:"required,oneof=deposit withdraw"`
-	Amount float64 `json:"amount" validate:"required,gt=0"`
-	TxHash string  `json:"tx_hash" validate:"omitempty,max=255"`
-	Note   string  `json:"note" validate:"omitempty,max=1000"`
+	UserID    string  `json:"user_id" validate:"omitempty,uuid4"`
+	Type      string  `json:"type" validate:"required,oneof=deposit withdraw giftcard"`
+	Amount    float64 `json:"amount" validate:"required,gt=0"`
+	Status    string  `json:"status" validate:"omitempty,oneof=processing completed rejected cancelled"`
+	TxHash    string  `json:"tx_hash" validate:"omitempty,max=255"`
+	Note      string  `json:"note" validate:"omitempty,max=1000"`
+	CreatedAt *string `json:"created_at" validate:"omitempty"`
 }
 
 type UpdateTransactionRequest struct {

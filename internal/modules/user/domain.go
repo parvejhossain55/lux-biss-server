@@ -16,6 +16,7 @@ const (
 	StatusActive  = "active"
 	StatusIgnored = "ignored"
 	StatusSuspend = "suspend"
+	StatusHold    = "hold"
 )
 
 type User struct {

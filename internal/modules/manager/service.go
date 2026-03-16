@@ -20,7 +20,6 @@ func (s *ManagerService) Create(ctx context.Context, req *CreateManagerRequest) 
 	manager := &Manager{
 		Name:             req.Name,
 		TelegramUsername: req.TelegramUsername,
-		TelegramLink:     req.TelegramLink,
 		ProfilePhoto:     req.ProfilePhoto,
 	}
 
@@ -57,9 +56,7 @@ func (s *ManagerService) Update(ctx context.Context, id string, req *UpdateManag
 	if req.TelegramUsername != nil {
 		manager.TelegramUsername = *req.TelegramUsername
 	}
-	if req.TelegramLink != nil {
-		manager.TelegramLink = *req.TelegramLink
-	}
+
 	if req.ProfilePhoto != nil {
 		manager.ProfilePhoto = *req.ProfilePhoto
 	}

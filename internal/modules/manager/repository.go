@@ -66,7 +66,6 @@ func (r *GormRepository) Update(ctx context.Context, manager *Manager) error {
 		Updates(map[string]interface{}{
 			"name":              manager.Name,
 			"telegram_username": manager.TelegramUsername,
-			"telegram_link":     manager.TelegramLink,
 			"profile_photo":     manager.ProfilePhoto,
 		})
 	if result.Error != nil {

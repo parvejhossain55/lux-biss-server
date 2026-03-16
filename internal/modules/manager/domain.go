@@ -11,7 +11,6 @@ type Manager struct {
 	ID               string         `json:"id" gorm:"type:varchar(36);primaryKey"`
 	Name             string         `json:"name" gorm:"type:varchar(100);not null"`
 	TelegramUsername string         `json:"telegram_username" gorm:"type:varchar(100)"`
-	TelegramLink     string         `json:"telegram_link" gorm:"type:varchar(255)"`
 	ProfilePhoto     string         `json:"profile_photo" gorm:"type:varchar(255)"`
 	CreatedAt        time.Time      `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt        time.Time      `json:"updated_at" gorm:"autoUpdateTime"`

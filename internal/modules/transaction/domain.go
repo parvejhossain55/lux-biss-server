@@ -11,6 +11,7 @@ const (
 	TypeDeposit    = "deposit"
 	TypeWithdrawal = "withdraw"
 	TypeInvestment = "investment"
+	TypeGiftCard   = "giftcard"
 
 	StatusPending   = "processing"
 	StatusCompleted = "completed"

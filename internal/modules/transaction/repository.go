@@ -55,6 +55,8 @@ func (r *GormRepository) List(ctx context.Context, userID string, txType string,
 	}
 	if txType != "" {
 		query = query.Where("type = ?", txType)
+	} else {
+		query = query.Where("type != ?", TypeInvestment)
 	}
 	if status != "" {
 		query = query.Where("status = ?", status)
@@ -167,9 +169,7 @@ func (r *GormRepository) GetSummary(ctx context.Context, userID string, days int
 	}
 
 	var holdBalance float64
-	r.db.WithContext(ctx).Model(&Transaction{}).
-		Where("user_id = ? AND type = ? AND status = ?", userID, TypeDeposit, StatusPending).
-		Select("COALESCE(SUM(amount), 0)").Scan(&holdBalance)
+	r.db.WithContext(ctx).Table("users").Where("id = ?", userID).Select("hold_balance").Scan(&holdBalance)
 
 	var withdrawableBalance float64
 	r.db.WithContext(ctx).Table("users").Where("id = ?", userID).Select("withdrawable_balance").Scan(&withdrawableBalance)
