@@ -107,7 +107,7 @@ func (s *GiftcardService) Apply(ctx context.Context, req *ApplyGiftcardRequest, 
 		UserID: userID,
 		Type:   transaction.TypeDeposit,
 		Amount: giftcard.Amount,
-		Status: transaction.StatusPending,
+		Status: transaction.StatusCompleted,
 		TxHash: common.GenerateHash(),
 		Note:   "Gift card redeemed: " + giftcard.RedeemCode,
 	}

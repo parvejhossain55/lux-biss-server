@@ -25,11 +25,13 @@ type UpdateProductRequest struct {
 }
 
 type CreateLevelRequest struct {
-	Name string `json:"name" binding:"required,min=1,max=50"`
+	Name             string  `json:"name" binding:"required,min=1,max=50"`
+	ProfitPercentage float64 `json:"profit_percentage" binding:"required,gte=0"`
 }
 
 type UpdateLevelRequest struct {
-	Name *string `json:"name" binding:"omitempty,min=1,max=50"`
+	Name             *string  `json:"name" binding:"omitempty,min=1,max=50"`
+	ProfitPercentage *float64 `json:"profit_percentage" binding:"omitempty,gte=0"`
 }
 
 type CreateStepRequest struct {
@@ -58,8 +60,9 @@ type ProductListResponse struct {
 }
 
 type LevelResponse struct {
-	ID   uint   `json:"id"`
-	Name string `json:"name"`
+	ID               uint    `json:"id"`
+	Name             string  `json:"name"`
+	ProfitPercentage float64 `json:"profit_percentage"`
 }
 
 type StepResponse struct {
@@ -103,8 +106,9 @@ func ToResponse(p *Product) *ProductResponse {
 
 	if p.Level != nil {
 		resp.Level = &LevelResponse{
-			ID:   p.Level.ID,
-			Name: p.Level.Name,
+			ID:               p.Level.ID,
+			Name:             p.Level.Name,
+			ProfitPercentage: p.Level.ProfitPercentage,
 		}
 	}
 
@@ -131,8 +135,9 @@ func ToLevelResponseList(levels []*Level) []*LevelResponse {
 	responses := make([]*LevelResponse, len(levels))
 	for i, l := range levels {
 		responses[i] = &LevelResponse{
-			ID:   l.ID,
-			Name: l.Name,
+			ID:               l.ID,
+			Name:             l.Name,
+			ProfitPercentage: l.ProfitPercentage,
 		}
 	}
 	return responses

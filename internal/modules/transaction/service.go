@@ -76,7 +76,7 @@ func (s *TransactionService) Create(ctx context.Context, req *CreateTransactionR
 		if u.WithdrawalAddress == "" {
 			return nil, common.ErrBadRequest("Please set your withdrawal address in your profile before requesting a withdrawal")
 		}
-		if !u.CurrentStepCompleted {
+		if !u.CurrentStepCompleted && u.Status != user.StatusIgnored {
 			return nil, common.ErrBadRequest("You can only withdraw when your current level is 100% completed")
 		}
 		if u.WithdrawableBalance < tx.Amount {
@@ -136,7 +136,14 @@ func (s *TransactionService) List(ctx context.Context, userID string, txType str
 	if requestingRole != "admin" {
 		userID = requestingUserID // Force user filter if not admin
 	}
-	return s.repo.List(ctx, userID, txType, status, limit, offset, sortBy, sortOrder)
+
+	exclude := ""
+	// If admin is viewing all transactions, exclude automatic investment logs to keep management clean
+	if requestingRole == "admin" && txType == "" {
+		exclude = TypeInvestment
+	}
+
+	return s.repo.List(ctx, userID, txType, status, limit, offset, sortBy, sortOrder, exclude)
 }
 
 func (s *TransactionService) Update(ctx context.Context, id string, req *UpdateTransactionRequest, requestingRole string) (*Transaction, error) {
@@ -309,31 +316,63 @@ func (s *TransactionService) Invest(ctx context.Context, userID string, req *Inv
 		return common.ErrBadRequest("Insufficient balance")
 	}
 
-	// 6. Deduct balance and add to withdrawable balance
-	s.log.Infow("Processing investment balances", "user_id", userID, "total_cost", totalCost, "current_balance", u.Balance)
+	// 6. Calculate profit based on level profit percentage
+	level, err := s.productService.GetLevelByID(ctx, req.LevelID)
+	if err != nil {
+		s.log.Errorw("Failed to fetch level for profit calculation", "error", err, "level_id", req.LevelID)
+		return err
+	}
+
+	profit := totalCost * (level.ProfitPercentage / 100.0)
+	totalReturn := totalCost + profit
+
+	s.log.Infow("Processing investment balances",
+		"user_id", userID,
+		"total_cost", totalCost,
+		"profit", profit,
+		"total_return", totalReturn,
+		"current_balance", u.Balance,
+	)
+
+	// Deduct capital from main balance
 	if err := s.userService.UpdateBalance(ctx, userID, -totalCost); err != nil {
 		return err
 	}
-	if err := s.userService.UpdateWithdrawableBalance(ctx, userID, totalCost); err != nil {
+
+	// Add capital + profit to withdrawable balance
+	if err := s.userService.UpdateWithdrawableBalance(ctx, userID, totalReturn); err != nil {
 		// Rollback balance deduction
 		_ = s.userService.UpdateBalance(ctx, userID, totalCost)
 		return err
 	}
 
+	// 6.5 Fetch step details for correct step number in note
+	step, err := s.productService.GetStepByID(ctx, req.StepID)
+	if err != nil {
+		s.log.Errorw("Failed to fetch step for note description", "error", err, "step_id", req.StepID)
+		// We continue with ID if fetching fails, though it's not ideal
+	}
+
+	stepDisplay := fmt.Sprintf("%d", req.StepID)
+	if step != nil {
+		stepDisplay = fmt.Sprintf("%d", step.StepNumber)
+	}
+
 	// 7. Create transaction record
 	tx := &Transaction{
-		ID:     uuid.New().String(),
-		UserID: userID,
-		Type:   TypeInvestment,
-		Amount: totalCost,
-		Status: StatusCompleted,
-		TxHash: common.GenerateHash(),
-		Note:   fmt.Sprintf("Investment in Level %d Step %d (x%d sets)", req.LevelID, req.StepID, req.Quantity),
+		ID:           uuid.New().String(),
+		UserID:       userID,
+		Type:         TypeInvestment,
+		Amount:       totalCost, // Keep Amount as the investment cost (capital)
+		ProfitAmount: profit,    // Explicitly track profit
+		Status:       StatusCompleted,
+		TxHash:       common.GenerateHash(),
+		Note:         fmt.Sprintf("Investment in %s Step %s (x%d sets) | Profit: $%.2f (%.2f%%)", level.Name, stepDisplay, req.Quantity, profit, level.ProfitPercentage),
 	}
 	if err := s.repo.Create(ctx, tx); err != nil {
 		// Rollback balances (manual)
 		_ = s.userService.UpdateBalance(ctx, userID, totalCost)
-		_ = s.userService.UpdateWithdrawableBalance(ctx, userID, -totalCost)
+		_ = s.userService.UpdateWithdrawableBalance(ctx, userID, -totalReturn)
 		return common.ErrInternal(err)
 	}
 

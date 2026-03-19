@@ -105,7 +105,8 @@ func (s *ProductService) Delete(ctx context.Context, id string) error {
 // Level operations
 func (s *ProductService) CreateLevel(ctx context.Context, req *CreateLevelRequest) (*Level, error) {
 	level := &Level{
-		Name: req.Name,
+		Name:             req.Name,
+		ProfitPercentage: req.ProfitPercentage,
 	}
 	if err := s.repo.CreateLevel(ctx, level); err != nil {
 		s.log.Errorw("Failed to create level", "error", err, "name", req.Name)
@@ -144,6 +145,9 @@ func (s *ProductService) UpdateLevel(ctx context.Context, id uint, req *UpdateLe
 	}
 	if req.Name != nil {
 		level.Name = *req.Name
+	}
+	if req.ProfitPercentage != nil {
+		level.ProfitPercentage = *req.ProfitPercentage
 	}
 	if err := s.repo.UpdateLevel(ctx, level); err != nil {
 		s.log.Errorw("Failed to update level", "error", err, "level_id", id)

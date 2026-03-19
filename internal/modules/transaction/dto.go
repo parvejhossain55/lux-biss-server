@@ -27,37 +27,41 @@ type InvestRequest struct {
 type TransactionResponse struct {
 	ID string `json:"id"`
 
-	UserID    string  `json:"user_id"`
-	Type      string  `json:"type"`
-	Amount    float64 `json:"amount"`
-	Status    string  `json:"status"`
-	TxHash    string  `json:"tx_hash"`
-	Note      string  `json:"note"`
-	CreatedAt string  `json:"created_at"`
-	UpdatedAt string  `json:"updated_at"`
+	UserID       string  `json:"user_id"`
+	Type         string  `json:"type"`
+	Amount       float64 `json:"amount"`
+	ProfitAmount float64 `json:"profit_amount"`
+	Status       string  `json:"status"`
+	TxHash       string  `json:"tx_hash"`
+	Note         string  `json:"note"`
+	CreatedAt    string  `json:"created_at"`
+	UpdatedAt    string  `json:"updated_at"`
 }
 
 type SummaryResponse struct {
-	AvailableBalance float64      `json:"available_balance"`
-	HoldBalance      float64      `json:"hold_balance"`
-	TotalDeposit     float64      `json:"total_deposit"`
-	TotalWithdrawal  float64      `json:"total_withdrawal"`
-	PeriodDays       int          `json:"period_days"`
-	WithdrawReport   []ReportItem `json:"withdraw_report"`
+	AvailableBalance    float64      `json:"available_balance"`
+	HoldBalance         float64      `json:"hold_balance"`
+	WithdrawableBalance float64      `json:"withdrawable_balance"`
+	TotalDeposit        float64      `json:"total_deposit"`
+	TotalWithdrawal     float64      `json:"total_withdrawal"`
+	TotalProfit         float64      `json:"total_profit"`
+	PeriodDays          int          `json:"period_days"`
+	WithdrawReport      []ReportItem `json:"withdraw_report"`
 }
 
 func ToResponse(t *Transaction) *TransactionResponse {
 	return &TransactionResponse{
 		ID: t.ID,
 
-		UserID:    t.UserID,
-		Type:      t.Type,
-		Amount:    t.Amount,
-		Status:    t.Status,
-		TxHash:    t.TxHash,
-		Note:      t.Note,
-		CreatedAt: t.CreatedAt.Format("2006-01-02T15:04:05Z"),
-		UpdatedAt: t.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		UserID:       t.UserID,
+		Type:         t.Type,
+		Amount:       t.Amount,
+		ProfitAmount: t.ProfitAmount,
+		Status:       t.Status,
+		TxHash:       t.TxHash,
+		Note:         t.Note,
+		CreatedAt:    t.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		UpdatedAt:    t.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 }
 

@@ -29,6 +29,7 @@ type ActivityResponse struct {
 	Email      string    `json:"email"`
 	Country    string    `json:"country"`
 	Status     string    `json:"status"`
+	Note       string    `json:"note"`
 	CreatedAt  time.Time `json:"-"` // Used for sorting before responding
 }
 

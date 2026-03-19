@@ -47,7 +47,7 @@ func (r *GormRepository) GetByID(ctx context.Context, id string) (*Transaction, 
 	return &tx, nil
 }
 
-func (r *GormRepository) List(ctx context.Context, userID string, txType string, status string, limit, offset int, sortBy, sortOrder string) ([]*Transaction, int64, error) {
+func (r *GormRepository) List(ctx context.Context, userID string, txType string, status string, limit, offset int, sortBy, sortOrder string, excludeType string) ([]*Transaction, int64, error) {
 	query := r.db.WithContext(ctx).Model(&Transaction{})
 
 	if userID != "" {
@@ -55,8 +55,8 @@ func (r *GormRepository) List(ctx context.Context, userID string, txType string,
 	}
 	if txType != "" {
 		query = query.Where("type = ?", txType)
-	} else {
-		query = query.Where("type != ?", TypeInvestment)
+	} else if excludeType != "" {
+		query = query.Where("type != ?", excludeType)
 	}
 	if status != "" {
 		query = query.Where("status = ?", status)
@@ -126,9 +126,10 @@ func (r *GormRepository) GetSummary(ctx context.Context, userID string, days int
 	baseCond := "user_id = ? AND status = ?"
 	baseArgs := []interface{}{userID, StatusCompleted}
 
-	var totalDep, totalWith float64
+	var totalDep, totalWith, totalProf float64
 	r.db.WithContext(ctx).Model(&Transaction{}).Where(baseCond+" AND type = ?", append(baseArgs, TypeDeposit)...).Select("COALESCE(SUM(amount), 0)").Scan(&totalDep)
 	r.db.WithContext(ctx).Model(&Transaction{}).Where(baseCond+" AND type = ?", append(baseArgs, TypeWithdrawal)...).Select("COALESCE(SUM(amount), 0)").Scan(&totalWith)
+	r.db.WithContext(ctx).Model(&Transaction{}).Where(baseCond+" AND type = ?", append(baseArgs, TypeInvestment)...).Select("COALESCE(SUM(profit_amount), 0)").Scan(&totalProf)
 
 	var balance float64
 	r.db.WithContext(ctx).Table("users").Where("id = ?", userID).Select("balance").Scan(&balance)
@@ -180,6 +181,7 @@ func (r *GormRepository) GetSummary(ctx context.Context, userID string, days int
 		WithdrawableBalance: withdrawableBalance,
 		TotalDeposit:        totalDep,
 		TotalWithdrawal:     totalWith,
+		TotalProfit:         totalProf,
 		PeriodDays:          days,
 		WithdrawReport:      reportItems,
 	}, nil

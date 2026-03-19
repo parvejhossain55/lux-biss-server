@@ -8,11 +8,12 @@ import (
 )
 
 type Level struct {
-	ID        uint           `json:"id" gorm:"primaryKey"`
-	Name      string         `json:"name" gorm:"type:varchar(50);not null;unique"`
-	CreatedAt time.Time      `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
-	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
+	ID               uint           `json:"id" gorm:"primaryKey"`
+	Name             string         `json:"name" gorm:"type:varchar(50);not null;unique"`
+	ProfitPercentage float64        `json:"profit_percentage" gorm:"type:decimal(5,2);not null;default:0"`
+	CreatedAt        time.Time      `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt        time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
+	DeletedAt        gorm.DeletedAt `json:"-" gorm:"index"`
 }
 
 func (Level) TableName() string {

@@ -191,9 +191,10 @@ func (r *GormRepository) GetRecentActivity(ctx context.Context, limit int) ([]*A
 		Email     string
 		Country   string
 		UsrStatus string
+		Note      string
 	}
 	if err := r.db.WithContext(ctx).Table("transactions").
-		Select("transactions.type, transactions.amount, transactions.tx_hash, transactions.created_at, transactions.status as tx_status, users.email, users.country, users.status as usr_status").
+		Select("transactions.type, transactions.amount, transactions.tx_hash, transactions.created_at, transactions.status as tx_status, transactions.note, users.email, users.country, users.status as usr_status").
 		Joins("JOIN users on users.id = transactions.user_id").
 		Where("users.role = ?", user.RoleUser).
 		Order("transactions.created_at desc").Limit(limit).Find(&recentTxs).Error; err == nil {
@@ -209,6 +210,7 @@ func (r *GormRepository) GetRecentActivity(ctx context.Context, limit int) ([]*A
 				Email:      tx.Email,
 				Country:    tx.Country,
 				Status:     capitalize(tx.TxStatus),
+				Note:       tx.Note,
 				CreatedAt:  tx.CreatedAt,
 			})
 		}

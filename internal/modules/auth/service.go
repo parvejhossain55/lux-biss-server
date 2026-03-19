@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/parvej/luxbiss_server/internal/common"
@@ -210,17 +211,26 @@ func isLoginAllowed(status string) bool {
 }
 
 func (s *Service) ForgotPassword(ctx context.Context, req *ForgotPasswordRequest) error {
-	existingUser, err := s.userService.GetByEmail(ctx, req.Email)
+	email := strings.ToLower(req.Email)
+	existingUser, err := s.userService.GetByEmail(ctx, email)
 	if err != nil {
+		// Log the attempt for auditing, but don't reveal to user if account exists
+		s.log.Infow("Forgot password request for non-existent user", "email", email)
+		return nil
+	}
+
+	// Only send OTP if user is allowed to login (not suspended)
+	if !isLoginAllowed(existingUser.Status) {
+		s.log.Infow("Forgot password request for deactivated user", "email", email, "status", existingUser.Status)
 		return nil
 	}
 
 	otp := generateOTP(6)
-	otpKey := fmt.Sprintf("otp:%s", existingUser.Email)
+	otpKey := fmt.Sprintf("otp:%s", email)
 
 	err = s.rdb.Set(ctx, otpKey, otp, 15*time.Minute).Err()
 	if err != nil {
-		s.log.Errorw("Failed to store OTP in redis", "error", err)
+		s.log.Errorw("Failed to store OTP in redis", "error", err, "email", email)
 		return common.ErrInternal(err)
 	}
 
@@ -248,8 +258,9 @@ func (s *Service) ResetPassword(ctx context.Context, req *ResetPasswordRequest) 
 		return common.ErrBadRequest("Passwords do not match")
 	}
 
-	otpKey := fmt.Sprintf("otp:%s", req.Email)
-	attemptsKey := fmt.Sprintf("otp_attempts:%s", req.Email)
+	email := strings.ToLower(req.Email)
+	otpKey := fmt.Sprintf("otp:%s", email)
+	attemptsKey := fmt.Sprintf("otp_attempts:%s", email)
 
 	// Increment attempts
 	attempts, _ := s.rdb.Incr(ctx, attemptsKey).Result()
@@ -274,7 +285,7 @@ func (s *Service) ResetPassword(ctx context.Context, req *ResetPasswordRequest) 
 		return common.ErrBadRequest("Invalid OTP")
 	}
 
-	existingUser, err := s.userService.GetByEmail(ctx, req.Email)
+	existingUser, err := s.userService.GetByEmail(ctx, email)
 	if err != nil {
 		return common.ErrNotFound("User")
 	}
@@ -294,7 +305,8 @@ func (s *Service) ResetPassword(ctx context.Context, req *ResetPasswordRequest) 
 }
 
 func (s *Service) VerifyOTP(ctx context.Context, req *VerifyOTPRequest) error {
-	otpKey := fmt.Sprintf("otp:%s", req.Email)
+	email := strings.ToLower(req.Email)
+	otpKey := fmt.Sprintf("otp:%s", email)
 	storedOTP, err := s.rdb.Get(ctx, otpKey).Result()
 	if err != nil {
 		if err == redis.Nil {
