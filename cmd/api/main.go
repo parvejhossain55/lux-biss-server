@@ -1,7 +1,11 @@
 package main
 
 import (
+	"embed"
+	"io/fs"
 	"log"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -30,6 +34,40 @@ import (
 func init() {
 	// Register custom validators
 	common.RegisterCustomValidators(auth.RegisterPasswordValidators)
+}
+
+//go:embed web/out/*
+var frontendAssets embed.FS
+
+// ServeFrontend routes all unknown paths to the Next.js static files
+func ServeFrontend(router *gin.Engine) {
+	assets, err := fs.Sub(frontendAssets, "web/out")
+	if err != nil {
+		// If we can't find the folder, just skip (happens during dev if not built)
+		return
+	}
+	fileServer := http.FileServer(http.FS(assets))
+
+	router.NoRoute(func(c *gin.Context) {
+		path := c.Request.URL.Path
+
+		// If it's an API route, let it fall through
+		if strings.HasPrefix(path, "/api") || strings.HasPrefix(path, "/uploads") {
+			return
+		}
+
+		// Try to serve the file from the embedded filesystem
+		f, err := assets.Open(strings.TrimPrefix(path, "/"))
+		if err == nil {
+			f.Close()
+			fileServer.ServeHTTP(c.Writer, c.Request)
+			return
+		}
+
+		// Otherwise, serve index.html (SPA routing fallback)
+		c.Request.URL.Path = "/"
+		fileServer.ServeHTTP(c.Writer, c.Request)
+	})
 }
 
 func main() {
@@ -92,6 +130,9 @@ func main() {
 		"env", cfg.App.Env,
 		"port", cfg.Server.Port,
 	)
+
+	// Serve frontend from embedded files
+	ServeFrontend(router)
 
 	if err := srv.Start(); err != nil {
 		appLogger.Fatalf("Server error: %v", err)
