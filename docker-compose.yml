@@ -5,34 +5,31 @@ services:
       dockerfile: Dockerfile
       target: ${APP_ENV:-dev}
     container_name: luxbiss-api
-    ports:
-      - "${SERVER_PORT:-8080}:8080"
+    # In host mode, ports are shared with the host
+    network_mode: host
     volumes:
       - .:/app
     env_file:
       - .env
     environment:
-      - DB_HOST=postgres
+      - DB_HOST=127.0.0.1
       - DB_PORT=5432
-      - REDIS_HOST=redis
+      - REDIS_HOST=127.0.0.1
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     restart: unless-stopped
-    networks:
-      - luxbiss-network
 
   postgres:
     image: postgres:16-alpine
     container_name: luxbiss-postgres
+    network_mode: host
     environment:
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
       POSTGRES_DB: ${DB_NAME:-luxbiss}
-    ports:
-      - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -41,12 +38,11 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
-    networks:
-      - luxbiss-network
 
   redis:
     image: redis:7-alpine
     container_name: luxbiss-redis
+    network_mode: host
     volumes:
       - redis_data:/data
     healthcheck:
@@ -55,14 +51,7 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
-    networks:
-      - luxbiss-network
 
 volumes:
   postgres_data:
   redis_data:
-
-
-networks:
-  luxbiss-network:
-    driver: bridge

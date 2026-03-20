@@ -1,6 +1,6 @@
 FROM golang:alpine AS base
 
-RUN apk add --no-cache git ca-certificates
+RUN apk add --no-cache git ca-certificates curl
 
 WORKDIR /app
 
@@ -20,7 +20,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
 # Production stage
 FROM alpine:3.19 AS prod
 
-RUN apk add --no-cache ca-certificates tzdata
+RUN apk add --no-cache ca-certificates tzdata curl
 
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 

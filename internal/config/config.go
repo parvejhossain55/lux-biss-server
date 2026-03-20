@@ -19,6 +19,7 @@ type Config struct {
 	CORS     CORSConfig
 	SMTP     SMTPConfig
 	OAuth    OAuthConfig
+	Telegram TelegramConfig
 }
 
 type AppConfig struct {
@@ -90,6 +91,12 @@ type OAuthConfig struct {
 	GoogleClientID     string
 	GoogleClientSecret string
 	GoogleRedirectURL  string
+}
+
+type TelegramConfig struct {
+	BotToken string
+	ChatID   string
+	ProxyURL string
 }
 
 func (d *DatabaseConfig) DSN() string {
@@ -180,6 +187,11 @@ func Load() (*Config, error) {
 			GoogleClientSecret: viper.GetString("GOOGLE_CLIENT_SECRET"),
 			GoogleRedirectURL:  viper.GetString("GOOGLE_REDIRECT_URL"),
 		},
+		Telegram: TelegramConfig{
+			BotToken: viper.GetString("BOT_TOKEN"),
+			ChatID:   viper.GetString("TELEGRAM_CHAT_ID"),
+			ProxyURL: viper.GetString("TELEGRAM_PROXY"),
+		},
 	}
 
 	return cfg, nil
@@ -259,6 +271,10 @@ func setDefaults() {
 	viper.SetDefault("GOOGLE_CLIENT_ID", "")
 	viper.SetDefault("GOOGLE_CLIENT_SECRET", "")
 	viper.SetDefault("GOOGLE_REDIRECT_URL", "")
+
+	viper.SetDefault("BOT_TOKEN", "")
+	viper.SetDefault("TELEGRAM_CHAT_ID", "")
+	viper.SetDefault("TELEGRAM_PROXY", "")
 }
 
 func parseStringSlice(key string) []string {

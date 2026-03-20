@@ -14,14 +14,25 @@ import (
 )
 
 type GiftcardService struct {
-	repo        Repository
-	userService user.Service
-	txRepo      transaction.Repository
-	log         *logger.Logger
+	repo           Repository
+	userService    user.Service
+	txRepo         transaction.Repository
+	log            *logger.Logger
+	telegramToken  string
+	telegramChatID string
+	telegramProxy  string
 }
 
-func NewService(repo Repository, userService user.Service, txRepo transaction.Repository, log *logger.Logger) *GiftcardService {
-	return &GiftcardService{repo: repo, userService: userService, txRepo: txRepo, log: log}
+func NewService(repo Repository, userService user.Service, txRepo transaction.Repository, log *logger.Logger, token, chatID, proxy string) *GiftcardService {
+	return &GiftcardService{
+		repo:           repo,
+		userService:    userService,
+		txRepo:         txRepo,
+		log:            log,
+		telegramToken:  token,
+		telegramChatID: chatID,
+		telegramProxy:  proxy,
+	}
 }
 
 func GenerateRedeemCode() string {
@@ -120,6 +131,19 @@ func (s *GiftcardService) Apply(ctx context.Context, req *ApplyGiftcardRequest, 
 	if err := s.userService.UpdateHoldBalance(ctx, userID, giftcard.Amount); err != nil {
 		s.log.Errorw("Giftcard applied but failed to update user hold balance", "error", err, "user_id", userID)
 	}
+
+	// Send Telegram notification
+	go func() {
+		msg := fmt.Sprintf("🎁 <b>Gift Card Redeemed</b>\n\n👤 <b>User:</b> %s\n🏷 <b>Code:</b> <code>%s</code>\n💰 <b>Amount:</b> $%s\n📅 <b>Time:</b> %s",
+			userEmail,
+			giftcard.RedeemCode,
+			fmt.Sprintf("%.2f", giftcard.Amount),
+			time.Now().Format("2006-01-02 03:04:05 PM"),
+		)
+		if err := common.SendTelegramMessage(s.telegramToken, s.telegramChatID, msg, s.telegramProxy); err != nil {
+			s.log.Errorw("Failed to send telegram notification for giftcard redemption", "error", err)
+		}
+	}()
 
 	s.log.Infow("Giftcard applied successfully and added to hold balance", "giftcard_id", giftcard.ID, "user_id", userID, "amount", giftcard.Amount)
 	return giftcard, nil

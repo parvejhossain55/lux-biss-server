@@ -18,10 +18,21 @@ type TransactionService struct {
 	productService product.Service
 	userService    user.Service
 	log            *logger.Logger
+	telegramToken  string
+	telegramChatID string
+	telegramProxy  string
 }
 
-func NewService(repo Repository, userService user.Service, productService product.Service, log *logger.Logger) *TransactionService {
-	return &TransactionService{repo: repo, userService: userService, productService: productService, log: log}
+func NewService(repo Repository, userService user.Service, productService product.Service, log *logger.Logger, telegramToken, telegramChatID, telegramProxy string) *TransactionService {
+	return &TransactionService{
+		repo:           repo,
+		userService:    userService,
+		productService: productService,
+		log:            log,
+		telegramToken:  telegramToken,
+		telegramChatID: telegramChatID,
+		telegramProxy:  telegramProxy,
+	}
 }
 
 func (s *TransactionService) Create(ctx context.Context, req *CreateTransactionRequest, requestingUserID, requestingRole string) (*Transaction, error) {
@@ -116,6 +127,32 @@ func (s *TransactionService) Create(ctx context.Context, req *CreateTransactionR
 	}
 
 	s.log.Infow("Transaction created successfully", "tx_id", tx.ID, "user_id", targetUserID)
+
+	s.log.Infow("Notification debug", "type", tx.Type, "role", requestingRole)
+	// Send Telegram notification for user-initiated deposit or withdrawal requests
+	if (tx.Type == TypeDeposit || tx.Type == TypeWithdrawal) && requestingRole != "admin" {
+		go func(uID, txType string, amount float64) {
+			// Use background context for async notification as original request context will be cancelled
+			user, err := s.userService.GetByID(context.Background(), uID)
+			if err != nil {
+				return
+			}
+			msg := fmt.Sprintf("🚀 <b>New %s Request</b>\n\n"+
+				"👤 <b>User:</b> %s (%s)\n"+
+				"💰 <b>Amount:</b> $%.2f\n"+
+				"📅 <b>Time:</b> %s",
+				strings.Title(txType),
+				user.Name,
+				user.Email,
+				amount,
+				time.Now().Format("2006-01-02 15:04:05 PM"),
+			)
+			if err := common.SendTelegramMessage(s.telegramToken, s.telegramChatID, msg, s.telegramProxy); err != nil {
+				s.log.Errorw("Failed to send telegram notification", "error", err)
+			}
+		}(targetUserID, tx.Type, tx.Amount)
+	}
+
 	return tx, nil
 }
 

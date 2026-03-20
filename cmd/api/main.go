@@ -143,12 +143,12 @@ func registerRoutes(
 	manager.RegisterRoutes(api, managerHandler, jwtManager, rdb)
 
 	transactionRepo := transaction.NewGormRepository(db)
-	transactionService := transaction.NewService(transactionRepo, userService, productService, appLogger)
+	transactionService := transaction.NewService(transactionRepo, userService, productService, appLogger, cfg.Telegram.BotToken, cfg.Telegram.ChatID, cfg.Telegram.ProxyURL)
 	transactionHandler := transaction.NewHandler(transactionService, appLogger)
 	transaction.RegisterRoutes(api, transactionHandler, jwtManager, rdb)
 
 	giftcardRepo := giftcard.NewGormRepository(db)
-	giftcardService := giftcard.NewService(giftcardRepo, userService, transactionRepo, appLogger)
+	giftcardService := giftcard.NewService(giftcardRepo, userService, transactionRepo, appLogger, cfg.Telegram.BotToken, cfg.Telegram.ChatID, cfg.Telegram.ProxyURL)
 	giftcardHandler := giftcard.NewHandler(giftcardService, appLogger)
 	giftcard.RegisterRoutes(api, giftcardHandler, jwtManager, rdb)
 
